@@ -1,0 +1,26 @@
+.TxData-table {
+  border-collapse: collapse;
+  font-family: monospace, arial, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+
+  /* tr:nth-child(even) {
+    background-color: #dddddd;
+  } */
+}
+
+.TxData-td {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+.TxData-th {
+  border: 1px solid #dddddd;
+  text-align: left;
+  padding: 8px;
+}
+
+.TxData-row-tr:nth-child(even) {
+  background-color: #dddddd;
+}
