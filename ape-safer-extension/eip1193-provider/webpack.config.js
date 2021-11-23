@@ -1,19 +1,19 @@
-const path = require('path');
+const path = require("path");
 
 module.exports = {
-  mode: 'production',
-  // optimization: {
-  //   minimize: false
-  // },
+  mode: "production",
+  optimization: {
+    minimize: true,
+  },
   entry: {
-    index: path.resolve(__dirname, 'dist', 'cjs', 'index.js'),
+    index: path.resolve(__dirname, "dist", "cjs", "index.js"),
   },
   output: {
-    path: path.resolve(__dirname, 'dist', 'umd'),
-    filename: '[name].min.js',
-    libraryTarget: 'umd',
-    library: 'CAIP',
+    path: path.resolve(__dirname, "dist", "umd"),
+    filename: "[name].min.js",
+    libraryTarget: "umd",
+    library: "CAIP",
     umdNamedDefine: true,
-    globalObject: 'this',
+    globalObject: "this",
   },
 };
