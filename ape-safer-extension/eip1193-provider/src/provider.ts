@@ -6,24 +6,28 @@ import { IEthereumProvider, ProviderAccounts, RequestArguments } from "./types";
 export class EthereumProvider extends JsonRpcProvider
   implements IEthereumProvider {
   public enable(): Promise<ProviderAccounts> {
-    console.log("enable")
+    console.log("enable");
     return this.request(formatJsonRpcRequest("eth_accounts", []));
   }
 
-  public send(args): Promise<ProviderAccounts> {
+  public send(args) {
     return this.request(args);
   }
-  
+
+  public request(args) {
+    return super.request(args);
+  }
+
   public isConnected() {
-    console.log("is connected")
+    console.log("is connected");
     return true;
   }
 
   _metamask = {
-    "isUnlocked" : function(): boolean {
+    isUnlocked: function(): boolean {
       return true;
-    }
-  }
+    },
+  };
 
   isMetaMask = true;
   chainId = this.request(formatJsonRpcRequest("eth_chainId", []));
