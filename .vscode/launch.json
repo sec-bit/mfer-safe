@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch file",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${file}",
+            "args":["-upstream=ws://tractor.local:9546", "-account=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "-listen=0.0.0.0:10545"],
+        }
+    ]
+}
