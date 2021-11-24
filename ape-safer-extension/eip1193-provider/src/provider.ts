@@ -30,7 +30,19 @@ export class EthereumProvider extends JsonRpcProvider
   };
 
   isMetaMask = true;
-  chainId = this.request(formatJsonRpcRequest("eth_chainId", []));
+  chainId = "0x00";
+
+  constructor(args) {
+    super(args);
+    this.request(formatJsonRpcRequest("eth_chainId", [])).then(response => {
+      console.log("chainId =", response);
+      this.chainId = response;
+    });
+  }
+
+  // public on(args) {
+  //   console.log("on", args);
+  // }
 
   // public send(request: any, callback: (error: any, response?: any) => void): void {
   //   if (!request) callback('Undefined request');
