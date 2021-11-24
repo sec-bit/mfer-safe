@@ -458,19 +458,29 @@ func (s *ApeAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*R
 }
 
 func (s *ApeAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
-	block, err := s.b.EVM.Conn.BlockByNumber(ctx, big.NewInt(number.Int64()))
+	var bn *big.Int
+	switch number {
+	case rpc.LatestBlockNumber:
+		bn = nil
+	case rpc.PendingBlockNumber:
+		latestBH := s.b.EVM.GetLatestBlockHeader()
+		bn = latestBH.Number
+	default:
+		bn = big.NewInt(int64(number))
+	}
+	block, err := s.b.EVM.Conn.BlockByNumber(ctx, bn)
 	if err != nil {
 		return nil, err
 	}
+	var response map[string]interface{}
 	if block != nil && err == nil {
-		response, err := RPCMarshalBlock(block, true, false)
+		response, err = RPCMarshalBlock(block, true, false)
 		if err == nil && number == rpc.PendingBlockNumber {
 			// Pending blocks need to nil out a few fields
-			for _, field := range []string{"hash", "nonce", "miner"} {
+			for _, field := range []string{"hash", "nonce"} {
 				response[field] = nil
 			}
 		}
-		return response, err
 	} else {
 		prevBlock, err := s.b.EVM.Conn.BlockByNumber(ctx, big.NewInt(number.Int64()-1))
 		if err != nil {
@@ -479,16 +489,17 @@ func (s *ApeAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, f
 		poolTxs, _ := s.b.TxPool.GetPoolTxs()
 		prevHeader := prevBlock.Header()
 		prevHeader.Number.Add(prevHeader.Number, big.NewInt(1))
+		prevHeader.Time += 10
 		currBlock := types.NewBlockWithHeader(prevHeader).WithBody(poolTxs, nil)
-		response, err := RPCMarshalBlock(currBlock, true, false)
-		if err == nil && number == rpc.PendingBlockNumber {
-			// Pending blocks need to nil out a few fields
-			for _, field := range []string{"hash", "nonce", "miner"} {
-				response[field] = nil
-			}
+		response, err = RPCMarshalBlock(currBlock, true, false)
+		if err != nil {
+			return nil, err
 		}
-		return response, err
 	}
+
+	response["miner"] = common.HexToAddress("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	return response, nil
+
 	// _ = block
 	// ret := make(map[string]interface{})
 	// ret["hash"] = block.Hash().Hex()
