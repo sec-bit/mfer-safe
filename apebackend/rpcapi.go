@@ -456,27 +456,45 @@ func (s *ApeAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*R
 	// Transaction unknown, return as such
 	return nil, nil
 }
+
 func (s *ApeAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
-	// block, err := s.b.EVM.Conn.BlockByNumber(ctx, big.NewInt(number.Int64()))
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// if block != nil && err == nil {
-	// 	response, err := s.rpcMarshalBlock(ctx, block, true, fullTx)
-	// 	if err == nil && number == rpc.PendingBlockNumber {
-	// 		// Pending blocks need to nil out a few fields
-	// 		for _, field := range []string{"hash", "nonce", "miner"} {
-	// 			response[field] = nil
-	// 		}
-	// 	}
-	// 	return response, err
-	// }
+	block, err := s.b.EVM.Conn.BlockByNumber(ctx, big.NewInt(number.Int64()))
+	if err != nil {
+		return nil, err
+	}
+	if block != nil && err == nil {
+		response, err := RPCMarshalBlock(block, true, false)
+		if err == nil && number == rpc.PendingBlockNumber {
+			// Pending blocks need to nil out a few fields
+			for _, field := range []string{"hash", "nonce", "miner"} {
+				response[field] = nil
+			}
+		}
+		return response, err
+	} else {
+		prevBlock, err := s.b.EVM.Conn.BlockByNumber(ctx, big.NewInt(number.Int64()-1))
+		if err != nil {
+			return nil, err
+		}
+		poolTxs, _ := s.b.TxPool.GetPoolTxs()
+		prevHeader := prevBlock.Header()
+		prevHeader.Number.Add(prevHeader.Number, big.NewInt(1))
+		currBlock := types.NewBlockWithHeader(prevHeader).WithBody(poolTxs, nil)
+		response, err := RPCMarshalBlock(currBlock, true, false)
+		if err == nil && number == rpc.PendingBlockNumber {
+			// Pending blocks need to nil out a few fields
+			for _, field := range []string{"hash", "nonce", "miner"} {
+				response[field] = nil
+			}
+		}
+		return response, err
+	}
 	// _ = block
-	ret := make(map[string]interface{})
+	// ret := make(map[string]interface{})
 	// ret["hash"] = block.Hash().Hex()
-	// ret["timestamp"] = block.Time()
-	ret["miner"] = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	return ret, nil
+	// ret["timestamp"] = hexutil.Uint64(block.Time())
+	// ret["miner"] = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	// return ret, nil
 }
 
 func (s *ApeAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
