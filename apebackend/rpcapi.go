@@ -513,6 +513,11 @@ func (s *ApeAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
 	return (*hexutil.Big)(tipcap), nil
 }
 
+func (s *ApeAPI) GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Uint64, error) {
+	nonce := s.b.EVM.StateDB.GetNonce(address)
+	return (*hexutil.Uint64)(&nonce), nil
+}
+
 func (s *ApeAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
 	index, tx := s.b.TxPool.GetTransactionByHash(hash)
 	if tx == nil {
