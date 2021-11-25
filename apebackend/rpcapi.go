@@ -442,30 +442,10 @@ func (s *ApeAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (c
 	if err := tx.UnmarshalBinary(input); err != nil {
 		return common.Hash{}, err
 	}
-	signer := types.NewLondonSigner(s.b.EVM.ChainID())
-	msg, err := tx.AsMessage(signer, big.NewInt(10e9))
-	if err != nil {
-		return common.Hash{}, err
-	}
 
-	from := msg.From()
-	gas := hexutil.Uint64(msg.Gas())
-	nonce := hexutil.Uint64(msg.Nonce())
-	calldata := hexutil.Bytes(msg.Data())
-	args := TransactionArgs{
-		From:                 &from,
-		To:                   msg.To(),
-		Gas:                  &gas,
-		GasPrice:             nil,
-		MaxFeePerGas:         nil,
-		MaxPriorityFeePerGas: nil,
-		Value:                (*hexutil.Big)(msg.Value()),
-		Nonce:                &nonce,
-		Data:                 &calldata,
-		Input:                &calldata,
-		ChainID:              nil,
-	}
-	return s.SendTransaction(ctx, args)
+	res := s.b.EVM.ExecuteTxs(types.Transactions{tx}, s.b.EVM.StateDB)
+	s.b.TxPool.AddTx(tx, res[0])
+	return tx.Hash(), nil
 }
 
 var (
