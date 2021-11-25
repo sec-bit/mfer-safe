@@ -209,7 +209,14 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB) (execRes
 
 	for i, tx := range txs {
 		// spew.Dump(tx)
-		msg, _ := tx.AsMessage(a.signer, big.NewInt(10e9))
+		v, r, s := tx.RawSignatureValues()
+		var signer types.Signer
+		if s == nil && v == nil && r != nil {
+			signer = a.signer
+		} else {
+			signer = types.NewLondonSigner(a.ChainID())
+		}
+		msg, _ := tx.AsMessage(signer, big.NewInt(10e9))
 		log.Printf("From: %s, To: %s, Nonce: %d, GasPrice: %d, Gas: %d, Hash: %s", msg.From(), msg.To(), msg.Nonce(), msg.GasPrice(), msg.Gas(), tx.Hash())
 
 		txContext := core.NewEVMTxContext(msg)
