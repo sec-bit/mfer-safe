@@ -437,6 +437,37 @@ func (s *ApeAPI) SendTransaction(ctx context.Context, args TransactionArgs) (com
 	return tx.Hash(), nil
 }
 
+func (s *ApeAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (common.Hash, error) {
+	tx := new(types.Transaction)
+	if err := tx.UnmarshalBinary(input); err != nil {
+		return common.Hash{}, err
+	}
+	signer := types.NewLondonSigner(s.b.EVM.ChainID())
+	msg, err := tx.AsMessage(signer, big.NewInt(10e9))
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	from := msg.From()
+	gas := hexutil.Uint64(msg.Gas())
+	nonce := hexutil.Uint64(msg.Nonce())
+	calldata := hexutil.Bytes(msg.Data())
+	args := TransactionArgs{
+		From:                 &from,
+		To:                   msg.To(),
+		Gas:                  &gas,
+		GasPrice:             nil,
+		MaxFeePerGas:         nil,
+		MaxPriorityFeePerGas: nil,
+		Value:                (*hexutil.Big)(msg.Value()),
+		Nonce:                &nonce,
+		Data:                 &calldata,
+		Input:                &calldata,
+		ChainID:              nil,
+	}
+	return s.SendTransaction(ctx, args)
+}
+
 var (
 	blockHash = crypto.Keccak256Hash([]byte("fake block hash"))
 )
