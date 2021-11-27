@@ -7,7 +7,6 @@ import (
 	"math/big"
 
 	"github.com/dynm/ape-safer/apestate"
-
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -192,7 +191,7 @@ type OverrideAccount struct {
 type StateOverride map[common.Address]OverrideAccount
 
 // Apply overrides the fields of specified accounts into the given state.
-func (diff *StateOverride) Apply(state *apestate.ApeStateDB) error {
+func (diff *StateOverride) Apply(state apestate.OverlayStateDB) error {
 	if diff == nil {
 		return nil
 	}
