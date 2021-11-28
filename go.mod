@@ -3,7 +3,6 @@ module github.com/dynm/ape-safer
 go 1.17
 
 require (
-	github.com/allegro/bigcache v1.2.1-0.20190218064605-e24eb225f156
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dustin/go-humanize v1.0.0
 	github.com/ethereum/go-ethereum v1.10.10
