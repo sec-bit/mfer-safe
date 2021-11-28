@@ -30,6 +30,18 @@ type StorageResult struct {
 	Value *hexutil.Big `json:"value"`
 	Proof []string     `json:"proof"`
 }
+
+type StorageReq struct {
+	Address common.Address
+	Key     common.Hash
+	Value   common.Hash
+	Error   error
+}
+
+func (r *StorageReq) Hash() common.Hash {
+	return crypto.Keccak256Hash(r.Address.Bytes(), r.Key.Bytes())
+}
+
 type OverlayState struct {
 	ctx                             context.Context
 	ec                              *rpc.Client
@@ -45,22 +57,28 @@ type OverlayState struct {
 	currentTxHash, currentBlockHash common.Hash
 	deriveCnt                       int64
 	rpcCnt                          int64
+	reqChan                         chan chan StorageReq
+	loadAccountMutex                *sync.Mutex
 }
 
 func NewOverlayState(ctx context.Context, ec *rpc.Client, bn int64) *OverlayState {
-	return &OverlayState{
-		ctx:             ctx,
-		ec:              ec,
-		conn:            ethclient.NewClient(ec),
-		parent:          nil,
-		bn:              bn,
-		scratchPadMutex: &sync.RWMutex{},
-		scratchPad:      make(map[common.Hash][]byte),
-		txLogs:          make(map[common.Hash][]*types.Log),
-		logs:            make([]*types.Log, 0),
-		receipts:        make(map[common.Hash]*types.Receipt),
-		deriveCnt:       0,
+	state := &OverlayState{
+		ctx:              ctx,
+		ec:               ec,
+		conn:             ethclient.NewClient(ec),
+		parent:           nil,
+		bn:               bn,
+		scratchPadMutex:  &sync.RWMutex{},
+		scratchPad:       make(map[common.Hash][]byte),
+		txLogs:           make(map[common.Hash][]*types.Log),
+		logs:             make([]*types.Log, 0),
+		receipts:         make(map[common.Hash]*types.Receipt),
+		deriveCnt:        0,
+		reqChan:          make(chan chan StorageReq, 500),
+		loadAccountMutex: &sync.Mutex{},
 	}
+	go state.timeSlot()
+	return state
 }
 
 func (s *OverlayState) Derive(reason string) *OverlayState {
@@ -103,7 +121,8 @@ var (
 )
 
 func (s *OverlayState) loadAccount(account common.Address) (*AccountResult, []byte, error) {
-
+	// s.loadAccountMutex.Lock()
+	// defer s.loadAccountMutex.Unlock()
 	var result AccountResult
 	var code hexutil.Bytes
 	rpcTries := 0
@@ -145,13 +164,97 @@ func (s *OverlayState) loadAccount(account common.Address) (*AccountResult, []by
 	return &result, code, nil
 }
 
-func (s *OverlayState) loadState(account common.Address, key common.Hash) (common.Hash, error) {
+func (s *OverlayState) loadStateBatchRPC(storageReqs []StorageReq) ([]StorageReq, error) {
+	// TODO: dedup
+	// reqCache := make(map[common.Hash]StorageReq)
+
+	// var value common.Hash
+	// var err error
+	// if val, ok := reqCache[storageReq.Hash()]; ok {
+	// 	value = val.Value
+	// 	err = val.Error
+	// } else {
+	// 	s.rpcCnt++
+	// 	value, err = s.loadStateRPC(storageReq.Address, storageReq.Key)
+	// }
+	// if err != nil {
+	// 	storageReq.Error = err
+	// } else {
+	// 	storageReq.Value = value
+	// }
+	// reqCache[storageReq.Hash()] = storageReq
+
+	reqs := make([]rpc.BatchElem, len(storageReqs))
+	values := make([]common.Hash, len(storageReqs))
+	bn := big.NewInt(s.bn)
+	hexBN := hexutil.EncodeBig(bn)
+	for i := range reqs {
+		reqs[i] = rpc.BatchElem{
+			Method: "eth_getStorageAt",
+			Args:   []interface{}{storageReqs[i].Address, storageReqs[i].Key, hexBN},
+			Result: &values[i],
+		}
+	}
+	if err := s.ec.BatchCallContext(s.ctx, reqs); err != nil {
+		return nil, err
+	}
+	for i := range reqs {
+		storageReqs[i].Value = values[i]
+		log.Printf("ReqHash: %s", storageReqs[i].Hash().Hex())
+	}
+	return storageReqs, nil
+}
+
+func (s *OverlayState) loadStateRPC(account common.Address, key common.Hash) (common.Hash, error) {
 	storage, err := s.conn.StorageAt(s.ctx, account, key, big.NewInt(s.bn))
 	if err != nil {
 		return common.Hash{}, err
 	}
 	value := common.BytesToHash(storage)
 	return value, nil
+}
+
+func (s *OverlayState) timeSlot() {
+	for {
+		reqLen := len(s.reqChan)
+		if reqLen > 0 {
+			log.Printf("Request Len: %d", reqLen)
+		}
+		select {
+		case <-time.After(time.Millisecond * 10):
+			reqPending := make([]StorageReq, reqLen)
+			reqChanPending := make([]chan StorageReq, reqLen)
+			for i := 0; i < reqLen; i++ {
+				req := <-s.reqChan
+				storageReq := <-req
+				reqPending[i] = storageReq
+				reqChanPending[i] = req
+			}
+			if reqLen == 0 {
+				continue
+			}
+			s.rpcCnt++
+			results, err := s.loadStateBatchRPC(reqPending)
+			if err != nil {
+				log.Panic("loadStateBatch, err: ", err)
+			}
+			for i := 0; i < reqLen; i++ {
+				req := reqChanPending[i]
+				req <- results[i]
+				close(req)
+			}
+
+		}
+	}
+}
+
+func (s *OverlayState) loadState(account common.Address, key common.Hash) (common.Hash, error) {
+	retChan := make(chan StorageReq)
+	s.reqChan <- retChan
+	retChan <- StorageReq{Address: account, Key: key}
+	result := <-retChan
+	// spew.Dump(result)
+	return result.Value, result.Error
 }
 
 func calcKey(account common.Address, key common.Hash) common.Hash {
@@ -184,13 +287,13 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 	}
 
 	if s.parent == nil {
-		s.scratchPadMutex.Lock()
-		defer s.scratchPadMutex.Unlock()
+		s.scratchPadMutex.RLock()
+		// defer s.scratchPadMutex.Unlock()
 		if val, ok := s.scratchPad[scratchpadKey]; ok {
-			// s.scratchPadMutex.RUnlock()
+			s.scratchPadMutex.RUnlock()
 			return val, nil
 		}
-		// s.scratchPadMutex.RUnlock()
+		s.scratchPadMutex.RUnlock()
 
 		var res []byte
 	UPDATE_BN_AND_RETRY:
@@ -205,13 +308,17 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 				}
 				s.bn = int64(bn)
 				log.Printf("Resetting State... BN: %d", bn)
+				s.scratchPadMutex.Lock()
 				s.scratchPad = make(map[common.Hash][]byte)
+				s.scratchPadMutex.Unlock()
 				goto UPDATE_BN_AND_RETRY
 			}
-			// s.scratchPadMutex.Lock()
-			s.scratchPad[scratchpadKey] = result.Bytes()
-			res = s.scratchPad[scratchpadKey]
-			// s.scratchPadMutex.Unlock()
+			go func() {
+				s.scratchPadMutex.Lock()
+				s.scratchPad[scratchpadKey] = result.Bytes()
+				s.scratchPadMutex.Unlock()
+			}()
+			res = result.Bytes()
 
 		case GET_BALANCE, GET_NONCE, GET_CODE, GET_CODEHASH:
 			result, code, err := s.loadAccount(account)
@@ -223,14 +330,16 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 				}
 				s.bn = int64(bn)
 				log.Printf("Resetting AccountState... BN: %d", bn)
+				s.scratchPadMutex.Lock()
 				s.scratchPad = make(map[common.Hash][]byte)
+				s.scratchPadMutex.Unlock()
 				goto UPDATE_BN_AND_RETRY
 			}
 			nonce := uint64(result.Nonce)
 			balance := result.Balance.ToInt()
 			codeHash := result.CodeHash
 
-			// s.scratchPadMutex.Lock()
+			s.scratchPadMutex.Lock()
 			if _, ok := s.scratchPad[calcKey(account, BALANCE_KEY)]; !ok {
 				s.scratchPad[calcKey(account, BALANCE_KEY)] = balance.Bytes()
 			}
@@ -254,9 +363,8 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 			case GET_CODEHASH:
 				res = s.scratchPad[calcKey(account, CODEHASH_KEY)]
 			}
-			// s.scratchPadMutex.Unlock()
+			s.scratchPadMutex.Unlock()
 		}
-		s.rpcCnt++
 		return res, nil
 
 	} else {
