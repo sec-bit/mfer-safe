@@ -296,6 +296,12 @@ func GetApeAPIs(b *ApeBackend) []rpc.API {
 			Public:    true,
 		},
 		{
+			Namespace: "debug",
+			Version:   "1.0",
+			Service:   &DebugAPI{b},
+			Public:    true,
+		},
+		{
 			Namespace: "ape",
 			Version:   "1.0",
 			Service:   NewApeActionAPI(b),
