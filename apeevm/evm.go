@@ -200,6 +200,18 @@ func (a *ApeEVM) SetTracer(t vm.Tracer) {
 	a.tracer = t
 }
 
+func (a *ApeEVM) TxToMessage(tx *types.Transaction) types.Message {
+	v, r, s := tx.RawSignatureValues()
+	var signer types.Signer
+	if s == nil && v == nil && r != nil {
+		signer = a.signer
+	} else {
+		signer = types.NewLondonSigner(a.ChainID())
+	}
+	msg, _ := tx.AsMessage(signer, big.NewInt(10e9))
+	return msg
+}
+
 func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB) (execResults []error) {
 	execResults = make([]error, len(txs))
 	var (
@@ -209,14 +221,7 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB) (execRes
 
 	for i, tx := range txs {
 		// spew.Dump(tx)
-		v, r, s := tx.RawSignatureValues()
-		var signer types.Signer
-		if s == nil && v == nil && r != nil {
-			signer = a.signer
-		} else {
-			signer = types.NewLondonSigner(a.ChainID())
-		}
-		msg, _ := tx.AsMessage(signer, big.NewInt(10e9))
+		msg := a.TxToMessage(tx)
 		log.Printf("From: %s, To: %s, Nonce: %d, GasPrice: %d, Gas: %d, Hash: %s", msg.From(), msg.To(), msg.Nonce(), msg.GasPrice(), msg.Gas(), tx.Hash())
 
 		txContext := core.NewEVMTxContext(msg)
