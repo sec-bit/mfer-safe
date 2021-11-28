@@ -56,7 +56,7 @@ func (tracer *KeccakTracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, g
 			contract := scope.Contract.Address()
 			callData := scope.Contract.Input
 
-			log.Printf("Contract: %s, data: 0x%02x, pre: %02x, hash: %s", contract.Hex(), callData, data, hasherBuf.Hex())
+			log.Printf("Keccak Detected\nContract: %s\ncalldata: 0x%02x\npreimage: %02x\nhash: %s", contract.Hex(), callData, data, hasherBuf.Hex())
 		}
 	case vm.ORIGIN:
 		{
