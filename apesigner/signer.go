@@ -18,7 +18,7 @@ type SetFromSigner struct {
 }
 
 func (signer *SetFromSigner) SignatureValues(tx *types.Transaction, sig []byte) (r, s, v *big.Int, err error) {
-	return new(big.Int).SetBytes(sig), nil, nil, nil
+	return new(big.Int).SetBytes(sig), big.NewInt(999), big.NewInt(999), nil
 }
 func (signer *SetFromSigner) Sender(tx *types.Transaction) (common.Address, error) {
 	_, R, _ := tx.RawSignatureValues()

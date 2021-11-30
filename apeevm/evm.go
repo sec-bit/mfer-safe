@@ -203,7 +203,7 @@ func (a *ApeEVM) SetTracer(t vm.Tracer) {
 func (a *ApeEVM) TxToMessage(tx *types.Transaction) types.Message {
 	v, r, s := tx.RawSignatureValues()
 	var signer types.Signer
-	if s == nil && v == nil && r != nil {
+	if s.Uint64() == 999 && v.Uint64() == 999 && r != nil {
 		signer = a.signer
 	} else {
 		signer = types.NewLondonSigner(a.ChainID())

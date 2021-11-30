@@ -11,6 +11,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/dynm/ape-safer/constant"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers"
@@ -179,3 +180,55 @@ func (s *DebugAPI) TraceTransaction(ctx context.Context, txHash common.Hash, con
 		panic(fmt.Sprintf("bad tracer type %T", tracer))
 	}
 }
+
+func (s *DebugAPI) Preimage(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
+	// if preimage := s.b.EVM.StateDB.ReadPreimage(api.eth.ChainDb(), hash); preimage != nil {
+	// 	return preimage, nil
+	// }
+	return nil, errors.New("unknown preimage")
+}
+
+type StorageRangeResult struct {
+	Storage storageMap   `json:"storage"`
+	NextKey *common.Hash `json:"nextKey"` // nil if Storage includes the last key in the trie.
+}
+
+type storageMap map[common.Hash]storageEntry
+
+type storageEntry struct {
+	Key   *common.Hash `json:"key"`
+	Value common.Hash  `json:"value"`
+}
+
+// StorageRangeAt returns the storage at the given block height and transaction index.
+func (s *DebugAPI) StorageRangeAt(blockHash common.Hash, txIndex int, contractAddress common.Address, keyStart hexutil.Bytes, maxResult int) (StorageRangeResult, error) {
+	// Retrieve the block
+
+	// if s.b.EVM.StateDB == nil {
+	return StorageRangeResult{}, fmt.Errorf("account %x doesn't exist", contractAddress)
+	// }
+	// return storageRangeAt(s.b.EVM.StateDB, keyStart, maxResult)
+}
+
+// func storageRangeAt(st *apestate.OverlayStateDB, start []byte, maxResult int) (StorageRangeResult, error) {
+// 	it := trie.NewIterator(st.NodeIterator(start))
+// 	result := StorageRangeResult{Storage: storageMap{}}
+// 	for i := 0; i < maxResult && it.Next(); i++ {
+// 		_, content, _, err := rlp.Split(it.Value)
+// 		if err != nil {
+// 			return StorageRangeResult{}, err
+// 		}
+// 		e := storageEntry{Value: common.BytesToHash(content)}
+// 		if preimage := st.GetKey(it.Key); preimage != nil {
+// 			preimage := common.BytesToHash(preimage)
+// 			e.Key = &preimage
+// 		}
+// 		result.Storage[common.BytesToHash(it.Key)] = e
+// 	}
+// 	// Add the 'next key' so clients can continue downloading.
+// 	if it.Next() {
+// 		next := common.BytesToHash(it.Key)
+// 		result.NextKey = &next
+// 	}
+// 	return result, nil
+// }

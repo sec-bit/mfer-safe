@@ -33,6 +33,10 @@ func (s *AuxAPI) Version() string {
 	return s.b.EVM.ChainID().String()
 }
 
+func (s *AuxAPI) Listening() bool {
+	return true
+}
+
 type ChainIDArgs struct {
 	ChainID *hexutil.Big `json:"balance"`
 }
@@ -466,12 +470,31 @@ func (s *ApeAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*R
 	}
 	if tx != nil {
 		rpcTx := newRPCTransaction(tx, blockHash, uint64(s.BlockNumber()), uint64(index), nil)
-		rpcTx.From = s.b.ImpersonatedAccount
+		msg := s.b.EVM.TxToMessage(tx)
+		rpcTx.From = msg.From()
 		return rpcTx, nil
 	}
 
 	// Transaction unknown, return as such
 	return nil, nil
+}
+
+func (s *ApeAPI) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]interface{}, error) {
+	block, err := s.b.EVM.Conn.BlockByHash(ctx, hash)
+	if block != nil {
+		return RPCMarshalBlock(block, true, fullTx)
+	} else {
+		block, err = s.b.EVM.Conn.BlockByNumber(ctx, nil)
+		if err != nil {
+			return nil, err
+		}
+		response, err := RPCMarshalBlock(block, true, false)
+		if err != nil {
+			return nil, err
+		}
+		return response, nil
+	}
+	return nil, err
 }
 
 func (s *ApeAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
@@ -515,6 +538,7 @@ func (s *ApeAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, f
 	}
 
 	response["miner"] = common.HexToAddress("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	response["totalDifficulty"] = hexutil.EncodeBig(big.NewInt(999))
 	return response, nil
 
 	// _ = block
