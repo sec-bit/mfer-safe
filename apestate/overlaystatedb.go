@@ -200,12 +200,13 @@ func (s *OverlayState) loadStateBatchRPC(storageReqs []StorageReq) ([]StorageReq
 	}
 	for i := range reqs {
 		storageReqs[i].Value = values[i]
-		log.Printf("ReqHash: %s", storageReqs[i].Hash().Hex())
+		// log.Printf("ReqHash: %s", storageReqs[i].Hash().Hex())
 	}
 	return storageReqs, nil
 }
 
 func (s *OverlayState) loadStateRPC(account common.Address, key common.Hash) (common.Hash, error) {
+	s.rpcCnt++
 	storage, err := s.conn.StorageAt(s.ctx, account, key, big.NewInt(s.bn))
 	if err != nil {
 		return common.Hash{}, err
@@ -215,13 +216,14 @@ func (s *OverlayState) loadStateRPC(account common.Address, key common.Hash) (co
 }
 
 func (s *OverlayState) timeSlot() {
+	ticker := time.NewTicker(time.Millisecond * 3)
 	for {
 		reqLen := len(s.reqChan)
 		if reqLen > 0 {
-			log.Printf("Request Len: %d", reqLen)
+			// log.Printf("Request Len: %d", reqLen)
 		}
 		select {
-		case <-time.After(time.Millisecond * 10):
+		case <-ticker.C:
 			reqPending := make([]StorageReq, reqLen)
 			reqChanPending := make([]chan StorageReq, reqLen)
 			for i := 0; i < reqLen; i++ {
@@ -313,11 +315,14 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 				s.scratchPadMutex.Unlock()
 				goto UPDATE_BN_AND_RETRY
 			}
-			go func() {
-				s.scratchPadMutex.Lock()
-				s.scratchPad[scratchpadKey] = result.Bytes()
-				s.scratchPadMutex.Unlock()
-			}()
+			// go func() {
+			// 	s.scratchPadMutex.Lock()
+			// 	s.scratchPad[scratchpadKey] = result.Bytes()
+			// 	s.scratchPadMutex.Unlock()
+			// }()
+			s.scratchPadMutex.Lock()
+			s.scratchPad[scratchpadKey] = result.Bytes()
+			s.scratchPadMutex.Unlock()
 			res = result.Bytes()
 
 		case GET_BALANCE, GET_NONCE, GET_CODE, GET_CODEHASH:
@@ -352,7 +357,9 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 			if _, ok := s.scratchPad[calcKey(account, CODEHASH_KEY)]; !ok {
 				s.scratchPad[calcKey(account, CODEHASH_KEY)] = codeHash[:]
 			}
+			s.scratchPadMutex.Unlock()
 
+			s.scratchPadMutex.RLock()
 			switch action {
 			case GET_BALANCE:
 				res = s.scratchPad[calcKey(account, BALANCE_KEY)]
@@ -363,7 +370,7 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 			case GET_CODEHASH:
 				res = s.scratchPad[calcKey(account, CODEHASH_KEY)]
 			}
-			s.scratchPadMutex.Unlock()
+			s.scratchPadMutex.RUnlock()
 		}
 		return res, nil
 
@@ -569,7 +576,7 @@ func (db *OverlayStateDB) AddSlotToAccessList(addr common.Address, slot common.H
 
 func (db *OverlayStateDB) RevertToSnapshot(revisionID int) {
 	tmpState := db.state.Pop()
-	log.Printf("Reverting... revision: %d, currentID: %d", revisionID, tmpState.deriveCnt)
+	log.Printf("Rollbacking... revision: %d, currentID: %d", revisionID, tmpState.deriveCnt)
 	for {
 		if tmpState.deriveCnt+1 == int64(revisionID) {
 			db.state = tmpState
