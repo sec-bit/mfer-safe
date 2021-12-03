@@ -66,7 +66,7 @@ func (p *ProbeAPI) RunTxWithDifferentContext(ctx context.Context, txHash common.
 	if err != nil {
 		return result, fmt.Errorf("err: %w (supplied gas %d)", err, msg.Gas())
 	}
-	ops0, sOps0 := tracer.GetResult()
+	ops0 := tracer.GetResult()
 
 	tracer.Reset()
 	vmCtx.Difficulty.Add(vmCtx.Difficulty, big.NewInt(1))
@@ -78,36 +78,39 @@ func (p *ProbeAPI) RunTxWithDifferentContext(ctx context.Context, txHash common.
 	if err != nil {
 		return result, fmt.Errorf("err: %w (supplied gas %d)", err, msg.Gas())
 	}
-	ops1, sOps1 := tracer.GetResult()
+	ops1 := tracer.GetResult()
 
-	if len(ops0) != len(ops1) {
-		log.Printf("trace len does not match, len[0] = %d, len[1] = %d", len(ops0), len(ops1))
-	}
-	for i := range ops0 {
-		if ops0[i].Hash != ops1[i].Hash {
-			log.Printf("[0] pre: 0x%02x, hash: %s", ops0[i].Preimage, ops0[i].Hash.Hex())
-			log.Printf("[1] pre: 0x%02x, hash: %s", ops1[i].Preimage, ops1[i].Hash.Hex())
-		}
-	}
+	// if len(ops0) != len(ops1) {
+	// 	log.Printf("trace len does not match, len[0] = %d, len[1] = %d", len(ops0), len(ops1))
+	// }
+	// for i := range ops0 {
+	// 	if ops0[i].Hash != ops1[i].Hash {
+	// 		log.Printf("[0] pre: 0x%02x, hash: %s", ops0[i].Preimage, ops0[i].Hash.Hex())
+	// 		log.Printf("[1] pre: 0x%02x, hash: %s", ops1[i].Preimage, ops1[i].Hash.Hex())
+	// 	}
+	// }
 
-	for i := range sOps0 {
-		if sOps0[i].Key == sOps1[i].Key && sOps0[i].Value == sOps1[i].Value {
-			continue
-		}
-		rw := ""
-		if sOps0[i].IsWrite {
-			rw = "W"
-		} else {
-			rw = "R"
-		}
-		log.Printf("[0] [%s] key: %s, val: %s", rw, sOps0[i].Key.Hex(), sOps0[i].Value.Hex())
-		if sOps1[i].IsWrite {
-			rw = "W"
-		} else {
-			rw = "R"
-		}
-		log.Printf("[1] [%s] key: %s, val: %s", rw, sOps1[i].Key.Hex(), sOps1[i].Value.Hex())
-	}
-
+	// for i := range sOps0 {
+	// 	if sOps0[i].Key == sOps1[i].Key && sOps0[i].Value == sOps1[i].Value {
+	// 		continue
+	// 	}
+	// 	rw := ""
+	// 	if sOps0[i].IsWrite {
+	// 		rw = "W"
+	// 	} else {
+	// 		rw = "R"
+	// 	}
+	// 	log.Printf("[0] [%s] key: %s, val: %s", rw, sOps0[i].Key.Hex(), sOps0[i].Value.Hex())
+	// 	if sOps1[i].IsWrite {
+	// 		rw = "W"
+	// 	} else {
+	// 		rw = "R"
+	// 	}
+	// 	log.Printf("[1] [%s] key: %s, val: %s", rw, sOps1[i].Key.Hex(), sOps1[i].Value.Hex())
+	// }
+	traces := make(map[string][]interface{})
+	traces["ops0"] = ops0
+	traces["ops1"] = ops1
+	return traces, nil
 	return result, nil
 }
