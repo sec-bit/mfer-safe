@@ -158,6 +158,10 @@ func (a *ApeEVM) Prepare() {
 	a.setVMContext()
 }
 
+func (a *ApeEVM) GetChainConfig() params.ChainConfig {
+	return *a.chainConfig
+}
+
 func (a *ApeEVM) SetTimeDelta(delta uint64) {
 	a.timeDelta = delta
 }
@@ -176,6 +180,10 @@ func (a *ApeEVM) setVMContext() {
 	a.vmContext.Time.SetInt64(int64(lastBlockHeader.Time + a.timeDelta))
 	a.vmContext.Difficulty.Set(lastBlockHeader.Difficulty)
 	a.vmContext.GasLimit = lastBlockHeader.GasLimit
+}
+
+func (a *ApeEVM) GetVMContext() vm.BlockContext {
+	return a.vmContext
 }
 
 func (a *ApeEVM) updatePendingBN() {
