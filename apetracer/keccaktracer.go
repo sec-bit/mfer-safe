@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"golang.org/x/crypto/sha3"
 )
@@ -24,7 +25,7 @@ type Tracer interface {
 
 type KeccakOp struct {
 	Contract common.Address
-	Preimage []byte
+	Preimage hexutil.Bytes
 	Hash     common.Hash
 }
 
@@ -35,16 +36,19 @@ type StorageOp struct {
 	IsWrite  bool
 }
 
+type GasOp struct {
+	Contract  common.Address
+	GasRemain uint64
+}
+
 func NewKeccakTracer() *KeccakTracer {
 	return &KeccakTracer{
-		keccakOps:  make([]KeccakOp, 0),
-		storageOps: make([]StorageOp, 0),
+		traceOps: make([]interface{}, 0),
 	}
 }
 
 type KeccakTracer struct {
-	keccakOps  []KeccakOp
-	storageOps []StorageOp
+	traceOps []interface{}
 }
 
 func (tracer *KeccakTracer) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
@@ -83,7 +87,7 @@ func (tracer *KeccakTracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, g
 				Preimage: data,
 				Hash:     hasherBuf,
 			}
-			tracer.keccakOps = append(tracer.keccakOps, keccakOp)
+			tracer.traceOps = append(tracer.traceOps, keccakOp)
 			// log.Printf("Keccak Detected\nContract: %s\ncalldata: 0x%02x\npreimage: %02x\nhash: %s", contract.Hex(), callData, data, hasherBuf.Hex())
 		}
 	case vm.ORIGIN:
@@ -109,7 +113,7 @@ func (tracer *KeccakTracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, g
 				Value:    val,
 				IsWrite:  false,
 			}
-			tracer.storageOps = append(tracer.storageOps, storageOp)
+			tracer.traceOps = append(tracer.traceOps, storageOp)
 		}
 	case vm.SSTORE:
 		{
@@ -123,7 +127,15 @@ func (tracer *KeccakTracer) CaptureState(env *vm.EVM, pc uint64, op vm.OpCode, g
 				Value:    valHash,
 				IsWrite:  true,
 			}
-			tracer.storageOps = append(tracer.storageOps, storageOp)
+			tracer.traceOps = append(tracer.traceOps, storageOp)
+		}
+	case vm.GAS:
+		{
+			gasOp := GasOp{
+				Contract:  contract,
+				GasRemain: scope.Contract.Gas,
+			}
+			tracer.traceOps = append(tracer.traceOps, gasOp)
 		}
 	}
 }
@@ -134,11 +146,10 @@ func (tracer *KeccakTracer) CaptureFault(env *vm.EVM, pc uint64, op vm.OpCode, g
 }
 func (tracer *KeccakTracer) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) {}
 
-func (tracer *KeccakTracer) GetResult() ([]KeccakOp, []StorageOp) {
-	return tracer.keccakOps, tracer.storageOps
+func (tracer *KeccakTracer) GetResult() []interface{} {
+	return tracer.traceOps
 }
 
 func (tracer *KeccakTracer) Reset() {
-	tracer.keccakOps = make([]KeccakOp, 0)
-	tracer.storageOps = make([]StorageOp, 0)
+	tracer.traceOps = make([]interface{}, 0)
 }
