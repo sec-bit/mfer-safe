@@ -13,7 +13,8 @@
     ]
   },
   "web_accessible_resources": [
-    "provider.js"
+    "provider.js",
+    "index.html"
   ],
   "permissions": [
     "storage",
