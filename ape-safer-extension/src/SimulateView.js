@@ -73,7 +73,7 @@ class SimulateView extends React.Component {
           <div>
             <Button onClick={() => this.simulate()}>🙉Simulate</Button>
           </div>
-          <FormGroup>
+          {/* <FormGroup>
             <FormControlLabel
               control={<Checkbox defaultChecked />}
               label="Label"
@@ -83,7 +83,7 @@ class SimulateView extends React.Component {
               control={<Checkbox />}
               label="Disabled"
             />
-          </FormGroup>
+          </FormGroup> */}
           <div>
             <TextField
               id="outlined-read-only-input"

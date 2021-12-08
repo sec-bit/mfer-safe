@@ -1,3 +1,4 @@
+/*global chrome*/
 export function docall(cmd, params) {
   var body = {
     jsonrpc: "2.0",
@@ -5,7 +6,16 @@ export function docall(cmd, params) {
     method: cmd,
     params: params,
   };
-  var ret = fetch("http://127.0.0.1:10545/", {
+
+  var rpcAddress = "http://127.0.0.1:10545/";
+
+  chrome.storage.local.get(["apesafer-rpc"], (items) => {
+    if (items["apesafer-rpc"] !== undefined) {
+      rpcAddress = items["apesafer-rpc"];
+    }
+  });
+
+  var ret = fetch(rpcAddress, {
     headers: {
       accept: "*/*",
       "content-type": "application/json",
