@@ -2,6 +2,7 @@ import React from "react";
 import "./TxDataTable.css";
 import fourByte from "4byte";
 import { ethers } from "ethers";
+import { docall } from "./utils.js";
 import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
 import Table from "@mui/material/Table";
@@ -28,29 +29,8 @@ class TxData extends React.Component {
     this.updateTxList();
   }
 
-  docall(cmd, params) {
-    var body = {
-      jsonrpc: "2.0",
-      id: 123,
-      method: cmd,
-      params: params,
-    };
-    var ret = fetch("http://127.0.0.1:10545/", {
-      headers: {
-        accept: "*/*",
-        "content-type": "application/json",
-      },
-      referrerPolicy: "strict-origin-when-cross-origin",
-      body: JSON.stringify(body),
-      method: "POST",
-      mode: "cors",
-      credentials: "omit",
-    });
-    return ret;
-  }
-
   updateTxList() {
-    this.docall("ape_getTxs", [])
+    docall("ape_getTxs", [])
       .then((res) => res.json())
       .then(
         (result) => {

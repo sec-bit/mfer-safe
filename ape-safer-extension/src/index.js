@@ -4,6 +4,7 @@ import "./index.css";
 import ButtonToolbar from "./ButtonToolbar";
 import TxData from "./TxDataTable";
 import SimulateView from "./SimulateView";
+import SettingsView from "./SettingsView";
 import reportWebVitals from "./reportWebVitals";
 
 ReactDOM.render(
@@ -25,6 +26,13 @@ ReactDOM.render(
     <SimulateView />
   </React.StrictMode>,
   document.getElementById("simulation-view")
+);
+
+ReactDOM.render(
+  <React.StrictMode>
+    <SettingsView />
+  </React.StrictMode>,
+  document.getElementById("settings")
 );
 
 // If you want to start measuring performance in your app, pass a function
