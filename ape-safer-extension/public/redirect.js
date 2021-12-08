@@ -2,7 +2,7 @@
   const needRedir = {};
   const needExclude = {};
   const networkFilters = {
-    urls: ["*://*/*"],
+    urls: ["<all_urls>"],
   };
 
   var apesafer_server = "http://127.0.0.1:10545/";
@@ -22,11 +22,16 @@
           return { redirectUrl: apesafer_server };
         }
 
+        if (details.url.indexOf(apesafer_server) >= 0) {
+          needExclude[details.url] = true;
+          return;
+        }
+
         if (needExclude[details.url]) {
           return;
         }
 
-        if (details.url !== apesafer_server && details.method === "POST") {
+        if (details.url !== apesafer_server) {
           try {
             var ret = details.requestBody.raw
               .map(function (data) {
@@ -36,17 +41,16 @@
                 );
               })
               .join("");
-            console.log(ret);
-            var method = JSON.parse(ret).method;
+            var method = JSON.parse(ret).method
+              ? JSON.parse(ret).method
+              : JSON.parse(ret)[0].method;
+
             if (method.indexOf("eth_") == 0) {
               console.log("redir: ", details.url, " to: ", apesafer_server);
               needRedir[details.url] = true;
               return { redirectUrl: apesafer_server };
             }
           } catch (e) {
-            console.log(e);
-            console.log(details);
-            needExclude[details.url] = true;
             return;
           }
         }
@@ -54,5 +58,5 @@
       networkFilters,
       ["blocking", "requestBody"]
     );
-  })();
-});
+  });
+})();

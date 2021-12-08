@@ -19,7 +19,6 @@ function embed(fn) {
       var funcStr = `(${fn.toString()})();`;
 
       chrome.storage.local.get(["apesafer-rpc"], (items) => {
-        console.log("inject, items:", items);
         if (items["apesafer-rpc"] !== undefined) {
           funcStr = funcStr.replace(
             `http://127.0.0.1:10545`,
