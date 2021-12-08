@@ -13,18 +13,18 @@ export function docall(cmd, params) {
     if (items["apesafer-rpc"] !== undefined) {
       rpcAddress = items["apesafer-rpc"];
     }
-  });
 
-  var ret = fetch(rpcAddress, {
-    headers: {
-      accept: "*/*",
-      "content-type": "application/json",
-    },
-    referrerPolicy: "strict-origin-when-cross-origin",
-    body: JSON.stringify(body),
-    method: "POST",
-    mode: "cors",
-    credentials: "omit",
+    var ret = fetch(rpcAddress, {
+      headers: {
+        accept: "*/*",
+        "content-type": "application/json",
+      },
+      referrerPolicy: "strict-origin-when-cross-origin",
+      body: JSON.stringify(body),
+      method: "POST",
+      mode: "cors",
+      credentials: "omit",
+    });
+    return ret;
   });
-  return ret;
 }
