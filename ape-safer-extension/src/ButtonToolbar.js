@@ -1,18 +1,8 @@
+/*global chrome*/
 import React from "react";
 import Button from "@material-ui/core/Button";
-import AppBar from "@material-ui/core/AppBar";
-import Badge from "@material-ui/core/Badge";
 import Toolbar from "@mui/material/Toolbar";
-import SpeedDial from "@mui/material/SpeedDial";
-import SpeedDialIcon from "@mui/material/SpeedDialIcon";
-import SpeedDialAction from "@mui/material/SpeedDialAction";
 import { docall } from "./utils.js";
-import {
-  Replay as ReplayIcon,
-  PlayArrow as PlayArrowIcon,
-  DeleteForever as DeleteForeverIcon,
-  FormatListBulleted as FormatListBulletedIcon,
-} from "@mui/icons-material";
 import Box from "@mui/material/Box";
 class ButtonToolbar extends React.Component {
   constructor(props) {
@@ -54,7 +44,7 @@ class ButtonToolbar extends React.Component {
   render() {
     return (
       <Box>
-        <Toolbar position="static">
+        <Toolbar>
           <Button
             onClick={() => {
               docall("ape_reExecTxPool", []);
@@ -64,6 +54,13 @@ class ButtonToolbar extends React.Component {
           </Button>
           <Button onClick={() => docall("ape_clearTxPool", [])}>
             🗑Clear TxPool
+          </Button>
+          <Button
+            onClick={() => {
+              window.open("?page=txs", "_blank");
+            }}
+          >
+            🗒️View All Txs
           </Button>
         </Toolbar>
       </Box>
