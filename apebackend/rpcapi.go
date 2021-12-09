@@ -290,7 +290,7 @@ func (s *ApeAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, f
 	}
 
 	response["miner"] = common.HexToAddress("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-	response["totalDifficulty"] = hexutil.EncodeBig(big.NewInt(999))
+	response["totalDifficulty"] = hexutil.EncodeBig(big.NewInt(3141592653589793))
 	return response, nil
 
 	// _ = block

@@ -1,6 +1,7 @@
 package apeevm
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -211,7 +212,7 @@ func (a *ApeEVM) SetTracer(t vm.Tracer) {
 func (a *ApeEVM) TxToMessage(tx *types.Transaction) types.Message {
 	v, r, s := tx.RawSignatureValues()
 	var signer types.Signer
-	if s.Uint64() == 999 && v.Uint64() == 999 && r != nil {
+	if v.Uint64() == 1 && bytes.Equal(s.Bytes(), constant.APESIGNER_S.Bytes()) && r != nil {
 		signer = a.signer
 	} else {
 		signer = types.NewLondonSigner(a.ChainID())
