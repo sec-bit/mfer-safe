@@ -52,15 +52,21 @@ func (s *ApeActionAPI) SetTimeDelta(delta uint64) {
 	s.b.EVM.SetTimeDelta(delta)
 }
 
+func (s *ApeActionAPI) Impersonate(account common.Address) {
+	s.b.ImpersonatedAccount = account
+}
+
 func (s *ApeActionAPI) SetBlockNumberDelta(delta uint64) {
 	s.b.EVM.SetBlockNumberDelta(delta)
 }
 
 type TxData struct {
-	Idx        int            `json:"idx"`
-	To         common.Address `json:"to"`
-	Data       hexutil.Bytes  `json:"calldata"`
-	ExecResult string         `json:"execResult"`
+	Idx          int            `json:"idx"`
+	From         common.Address `json:"from"`
+	To           common.Address `json:"to"`
+	Data         hexutil.Bytes  `json:"calldata"`
+	ExecResult   string         `json:"execResult"`
+	PseudoTxHash common.Hash    `json:"pseudoTxHash"`
 }
 
 type MultiSendData struct {
@@ -96,11 +102,15 @@ func (s *ApeActionAPI) GetTxs() ([]*TxData, error) {
 		if execResult[i] != nil {
 			result = execResult[i].Error()
 		}
+
+		msg := s.b.EVM.TxToMessage(tx)
 		txData[i] = &TxData{
-			Idx:        i,
-			To:         to,
-			Data:       tx.Data(),
-			ExecResult: result,
+			Idx:          i,
+			From:         msg.From(),
+			To:           to,
+			Data:         tx.Data(),
+			ExecResult:   result,
+			PseudoTxHash: tx.Hash(),
 		}
 	}
 

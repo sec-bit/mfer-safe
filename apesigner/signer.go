@@ -3,6 +3,7 @@ package apesigner
 import (
 	"math/big"
 
+	"github.com/dynm/ape-safer/constant"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -18,7 +19,7 @@ type SetFromSigner struct {
 }
 
 func (signer *SetFromSigner) SignatureValues(tx *types.Transaction, sig []byte) (r, s, v *big.Int, err error) {
-	return new(big.Int).SetBytes(sig), big.NewInt(999), big.NewInt(999), nil
+	return new(big.Int).SetBytes(sig), constant.APESIGNER_S, big.NewInt(1), nil
 }
 func (signer *SetFromSigner) Sender(tx *types.Transaction) (common.Address, error) {
 	_, R, _ := tx.RawSignatureValues()
