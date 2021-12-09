@@ -1,16 +1,31 @@
 import React from "react";
-import "./TxDataTable.css";
+// import "./TxDataTable.css";
+import Link from "@mui/material/Link";
 import fourByte from "4byte";
 import { ethers } from "ethers";
 import { docall } from "./utils.js";
-import Collapse from "@mui/material/Collapse";
-import IconButton from "@mui/material/IconButton";
-import TableCell from "@mui/material/TableCell";
-import TableRow from "@mui/material/TableRow";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 
-class TxDataTable extends React.Component {
+import { DataGrid } from "@mui/x-data-grid";
+
+const columns = [
+  { field: "id", headerName: "Index", width: 70 },
+
+  {
+    field: "pseudoTxHash",
+    headerName: "Txn Hash",
+    width: 350,
+    renderCell: function (params) {
+      return (
+        <Link href={"?page=trace&txhash=" + params.value}>{params.value}</Link>
+      );
+    },
+  },
+  { field: "method", headerName: "Method", width: 200 },
+  { field: "from", headerName: "From", width: 300 },
+  { field: "to", headerName: "To", width: 300 },
+];
+
+class TxDataOverview extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -96,63 +111,30 @@ class TxDataTable extends React.Component {
       return <div>No txs yet</div>;
     }
     var rows = txs.map(
-      (txdata) => (
-        // <tr key={txdata.idx} className="TxData-row-tr">
-        //   <td className="TxData-td">{txdata.to}</td>
-        //   <td className="TxData-td">{this.state.abi[txdata.calldata]}</td>
-        //   <td className="TxData-td">{txdata.execResult}</td>
-        //   <td className="TxData-td">{txdata.calldata}</td>
-        // </tr>
-        <React.Fragment>
-          <TableRow>
-            <TableCell>
-              <IconButton
-                aria-label="expand row"
-                size="small"
-                onClick={() => this.setState({ open: !this.state.open })}
-              >
-                {this.state.open ? (
-                  <KeyboardArrowUpIcon />
-                ) : (
-                  <KeyboardArrowDownIcon />
-                )}
-              </IconButton>
-            </TableCell>
-            <TableCell component="th" scope="row">
-              {txdata.idx}
-            </TableCell>
-            <TableCell>{txdata.to}</TableCell>
-            <TableCell>{this.state.abi[txdata.calldata]}</TableCell>
-            <TableCell>{txdata.execResult}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell>
-              <Collapse in={this.state.open} timeout="auto" unmountOnExit>
-                {txdata.calldata}
-              </Collapse>
-            </TableCell>
-          </TableRow>
-        </React.Fragment>
-      )
+      (txdata) => ({
+        id: txdata.idx,
+        pseudoTxHash: txdata.pseudoTxHash,
+        method: this.state.abi[txdata.calldata],
+        from: txdata.from,
+        to: txdata.to,
+      })
       // <li key={number.toString()}>
       //   {number}
       // </li>
     );
 
     return (
-      // <table className="TxData-table">
-      //   <tbody>
-      //     <tr className="TxData-tr">
-      //       <th className="TxData-th">To</th>
-      //       <th className="TxData-tr">ABI</th>
-      //       <th className="TxData-tr">Execution Result</th>
-      //       <th className="TxData-tr">Calldata</th>
-      //     </tr>
-      rows
-      // </tbody>
-      // </table>
+      <div style={{ height: 400, width: "100%" }}>
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          pageSize={50}
+          rowsPerPageOptions={[50]}
+          checkboxSelection
+        />
+      </div>
     );
   }
 }
 
-export default TxDataTable;
+export default TxDataOverview;

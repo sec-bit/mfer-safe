@@ -1,22 +1,15 @@
 /*global chrome*/
 import React from "react";
 import Button from "@material-ui/core/Button";
-import AppBar from "@material-ui/core/AppBar";
-import Badge from "@material-ui/core/Badge";
-import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
-import Toolbar from "@mui/material/Toolbar";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
-import FormGroup from "@mui/material/FormGroup";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Checkbox from "@mui/material/Checkbox";
 import { docall } from "./utils.js";
 
 class SettingsView extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      rpc: "",
+      rpc: "http://127.0.0.1:10545",
     };
 
     chrome.storage.local.get(["apesafer-rpc"], (items) => {
@@ -33,7 +26,8 @@ class SettingsView extends React.Component {
       this.setState({ rpc: items["apesafer-rpc"] });
     });
 
-    this.handleChange = this.handleChange.bind(this);
+    this.handleRPCChange = this.handleRPCChange.bind(this);
+    this.handleAccountChange = this.handleAccountChange.bind(this);
   }
 
   save() {
@@ -44,9 +38,17 @@ class SettingsView extends React.Component {
     );
   }
 
-  handleChange(event) {
+  impersonate() {
+    docall("ape_impersonate", [this.state.impersonatedAccount]);
+  }
+
+  handleRPCChange(event) {
     console.log("event:", event);
     this.setState({ rpc: event.target.value });
+  }
+  handleAccountChange(event) {
+    console.log("event:", event);
+    this.setState({ impersonatedAccount: event.target.value });
   }
 
   render() {
@@ -62,12 +64,22 @@ class SettingsView extends React.Component {
         >
           <div>
             <TextField
+              value={this.state.impersonatedAccount}
+              onChange={this.handleAccountChange}
+              label="Impersonated Account"
+            />
+          </div>
+          <Button onClick={() => this.impersonate()}>🎭Impersonate</Button>
+          <div>
+            <TextField
               value={this.state.rpc}
-              onChange={this.handleChange}
+              onChange={this.handleRPCChange}
               label="ApeSafer RPC"
             />
           </div>
-          <Button onClick={() => this.save()}>💾Save</Button>
+          <Button onClick={() => this.save()}>
+            💾Save (Restart your browser please.)
+          </Button>
         </Box>
       </div>
     );

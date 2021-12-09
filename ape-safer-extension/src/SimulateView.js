@@ -1,14 +1,7 @@
 import React from "react";
 import Button from "@material-ui/core/Button";
-import AppBar from "@material-ui/core/AppBar";
-import Badge from "@material-ui/core/Badge";
-import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
-import Toolbar from "@mui/material/Toolbar";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
-import FormGroup from "@mui/material/FormGroup";
-import FormControlLabel from "@mui/material/FormControlLabel";
-import Checkbox from "@mui/material/Checkbox";
 import { docall } from "./utils.js";
 
 class SimulateView extends React.Component {
