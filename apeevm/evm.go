@@ -127,13 +127,7 @@ func (a *ApeEVM) Prepare() {
 	}
 
 	a.StateDB = apestate.NewOverlayStateDB(a.RpcClient, int(lastBlockHeader.Number.Uint64()))
-	// a.StateDB = apestate.NewApeStateDB(a.RpcClient, int(lastBlock.NumberU64()))
-	a.StateDB.SetCodeHash(a.impersonatedAccount, common.Hash{})
-	a.StateDB.SetCode(a.impersonatedAccount, []byte{})
-	a.StateDB.AddBalance(constant.FAKE_ACCOUNT_0, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
-	a.StateDB.AddBalance(constant.FAKE_ACCOUNT_1, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
-	a.StateDB.AddBalance(constant.FAKE_ACCOUNT_2, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
-	a.StateDB.AddBalance(constant.FAKE_ACCOUNT_3, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
+	a.StateDB.InitFakeAccounts()
 
 	a.signer = apesigner.NewSigner(a.ChainID().Int64())
 
@@ -231,6 +225,7 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB) (execRes
 	for i, tx := range txs {
 		// spew.Dump(tx)
 		msg := a.TxToMessage(tx)
+		stateDB.(*apestate.OverlayStateDB).SetCodeHash(msg.From(), common.Hash{})
 		log.Printf("From: %s, To: %s, Nonce: %d, GasPrice: %d, Gas: %d, Hash: %s", msg.From(), msg.To(), msg.Nonce(), msg.GasPrice(), msg.Gas(), tx.Hash())
 
 		txContext := core.NewEVMTxContext(msg)
@@ -321,6 +316,7 @@ func (a *ApeEVM) DoCall(msg *types.Message, debug bool, stateDB vm.StateDB) (*co
 		Tracer: a.tracer,
 	}
 
+	stateDB.(*apestate.OverlayStateDB).SetCodeHash(msg.From(), common.Hash{})
 	evm := vm.NewEVM(a.vmContext, txContext, stateDB, a.chainConfig, vmCfg)
 
 	gasPool := new(core.GasPool).AddGas(math.MaxUint64)

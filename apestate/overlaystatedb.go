@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dynm/ape-safer/constant"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -451,6 +452,13 @@ func (db *OverlayStateDB) AddBalance(account common.Address, delta *big.Int) {
 	balB := new(big.Int).SetBytes(bal)
 	post := balB.Add(balB, delta)
 	db.state.scratchPad[calcKey(account, BALANCE_KEY)] = post.Bytes()
+}
+
+func (db *OverlayStateDB) InitFakeAccounts() {
+	db.AddBalance(constant.FAKE_ACCOUNT_0, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
+	db.AddBalance(constant.FAKE_ACCOUNT_1, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
+	db.AddBalance(constant.FAKE_ACCOUNT_2, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
+	db.AddBalance(constant.FAKE_ACCOUNT_3, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
 }
 
 func (db *OverlayStateDB) GetBalance(account common.Address) *big.Int {
