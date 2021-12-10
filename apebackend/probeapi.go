@@ -7,7 +7,6 @@ import (
 	"math/big"
 
 	"github.com/dynm/ape-safer/apetracer"
-	"github.com/dynm/ape-safer/constant"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
@@ -38,16 +37,11 @@ func (p *ProbeAPI) RunTxWithDifferentContext(ctx context.Context, txHash common.
 	// Run the transaction with tracing enabled.
 
 	stateDB := p.b.EVM.StateDB.CloneFromRoot()
-
-	stateDB.SetCodeHash(p.b.ImpersonatedAccount, common.Hash{})
-	stateDB.SetCode(p.b.ImpersonatedAccount, []byte{})
-	stateDB.AddBalance(constant.FAKE_ACCOUNT_0, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
-	stateDB.AddBalance(constant.FAKE_ACCOUNT_1, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
-	stateDB.AddBalance(constant.FAKE_ACCOUNT_2, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
-	stateDB.AddBalance(constant.FAKE_ACCOUNT_3, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
+	stateDB.InitFakeAccounts()
 
 	p.b.EVM.ExecuteTxs(txs, stateDB)
 	msg := p.b.EVM.TxToMessage(txToBeTraced)
+	stateDB.SetCodeHash(msg.From(), common.Hash{})
 
 	txContext := core.NewEVMTxContext(msg)
 

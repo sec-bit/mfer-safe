@@ -5,11 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"math/big"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/dynm/ape-safer/constant"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -142,18 +140,12 @@ func (s *DebugAPI) TraceTransaction(ctx context.Context, txHash common.Hash, con
 	// Run the transaction with tracing enabled.
 
 	stateDB := s.b.EVM.StateDB.CloneFromRoot()
-
-	stateDB.SetCodeHash(s.b.ImpersonatedAccount, common.Hash{})
-	stateDB.SetCode(s.b.ImpersonatedAccount, []byte{})
-	stateDB.AddBalance(constant.FAKE_ACCOUNT_0, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
-	stateDB.AddBalance(constant.FAKE_ACCOUNT_1, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
-	stateDB.AddBalance(constant.FAKE_ACCOUNT_2, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
-	stateDB.AddBalance(constant.FAKE_ACCOUNT_3, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
-
+	stateDB.InitFakeAccounts()
 	s.b.EVM.ExecuteTxs(txs, stateDB)
 
 	s.b.EVM.SetTracer(tracer)
 	msg := s.b.EVM.TxToMessage(txToBeTraced)
+
 	result, err := s.b.EVM.DoCall(&msg, true, stateDB)
 	if err != nil {
 		return nil, err
