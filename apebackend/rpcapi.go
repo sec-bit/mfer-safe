@@ -233,20 +233,16 @@ func (s *ApeAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*R
 
 func (s *ApeAPI) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]interface{}, error) {
 	block, err := s.b.EVM.Conn.BlockByHash(ctx, hash)
-	if block != nil {
+	if block != nil && err == nil {
 		return RPCMarshalBlock(block, true, fullTx)
 	} else {
-		block, err = s.b.EVM.Conn.BlockByNumber(ctx, nil)
+		response, err := s.GetBlockByNumber(ctx, rpc.LatestBlockNumber, fullTx)
 		if err != nil {
 			return nil, err
 		}
-		response, err := RPCMarshalBlock(block, true, false)
-		if err != nil {
-			return nil, err
-		}
+
 		return response, nil
 	}
-	return nil, err
 }
 
 func (s *ApeAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
