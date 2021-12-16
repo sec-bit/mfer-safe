@@ -225,9 +225,14 @@ func (s *OverlayState) timeSlot() {
 			if reqLen == 0 {
 				continue
 			}
-			err := s.loadStateBatchRPC(reqPending)
-			if err != nil {
-				log.Panic("loadStateBatch, err: ", err)
+			for {
+				err := s.loadStateBatchRPC(reqPending)
+				if err != nil {
+					log.Printf("loadStateBatch, err: %v", err)
+					time.Sleep(time.Second * 1)
+				} else {
+					break
+				}
 			}
 			for i := 0; i < reqLen; i++ {
 				req := reqChanPending[i]
