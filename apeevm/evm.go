@@ -37,7 +37,6 @@ type ApeEVM struct {
 	SelfConn  *ethclient.Client
 
 	StateDB             *apestate.OverlayStateDB
-	signer              types.Signer
 	vmContext           vm.BlockContext
 	gasPool             *core.GasPool
 	chainConfig         *params.ChainConfig
@@ -126,10 +125,10 @@ func (a *ApeEVM) Prepare() {
 		log.Panic("[Prepare] cannot get last block")
 	}
 
-	a.StateDB = apestate.NewOverlayStateDB(a.RpcClient, int(lastBlockHeader.Number.Uint64()))
+	if a.StateDB == nil {
+		a.StateDB = apestate.NewOverlayStateDB(a.RpcClient, int(lastBlockHeader.Number.Uint64()))
+	}
 	a.StateDB.InitFakeAccounts()
-
-	a.signer = apesigner.NewSigner(a.ChainID().Int64())
 
 	getHash := func(bn uint64) common.Hash {
 		blk, err := a.Conn.BlockByNumber(a.ctx, new(big.Int).SetUint64(bn))
@@ -207,7 +206,7 @@ func (a *ApeEVM) TxToMessage(tx *types.Transaction) types.Message {
 	v, r, s := tx.RawSignatureValues()
 	var signer types.Signer
 	if v.Uint64() == 1 && bytes.Equal(s.Bytes(), constant.APESIGNER_S.Bytes()) && r != nil {
-		signer = a.signer
+		signer = apesigner.NewSigner(a.ChainID().Int64())
 	} else {
 		signer = types.NewLondonSigner(a.ChainID())
 	}
