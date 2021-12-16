@@ -5,6 +5,7 @@ import (
 	"context"
 	"log"
 	"math/big"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -44,14 +45,15 @@ func (r *StorageReq) Hash() common.Hash {
 }
 
 type OverlayState struct {
-	ctx                             context.Context
-	ec                              *rpc.Client
-	conn                            *ethclient.Client
-	parent                          *OverlayState
-	bn                              int64
-	lastBN                          int64
-	scratchPadMutex                 *sync.RWMutex
-	scratchPad                      map[common.Hash][]byte
+	ctx             context.Context
+	ec              *rpc.Client
+	conn            *ethclient.Client
+	parent          *OverlayState
+	bn              int64
+	lastBN          int64
+	scratchPadMutex *sync.RWMutex
+	scratchPad      map[string][]byte
+
 	logs                            []*types.Log
 	txLogs                          map[common.Hash][]*types.Log
 	receipts                        map[common.Hash]*types.Receipt
@@ -60,17 +62,20 @@ type OverlayState struct {
 	rpcCnt                          int64
 	reqChan                         chan chan StorageReq
 	loadAccountMutex                *sync.Mutex
+
+	stateID uint64
 }
 
 func NewOverlayState(ctx context.Context, ec *rpc.Client, bn int64) *OverlayState {
 	state := &OverlayState{
-		ctx:              ctx,
-		ec:               ec,
-		conn:             ethclient.NewClient(ec),
-		parent:           nil,
-		bn:               bn,
-		scratchPadMutex:  &sync.RWMutex{},
-		scratchPad:       make(map[common.Hash][]byte),
+		ctx:             ctx,
+		ec:              ec,
+		conn:            ethclient.NewClient(ec),
+		parent:          nil,
+		bn:              bn,
+		scratchPadMutex: &sync.RWMutex{},
+		scratchPad:      make(map[string][]byte),
+
 		txLogs:           make(map[common.Hash][]*types.Log),
 		logs:             make([]*types.Log, 0),
 		receipts:         make(map[common.Hash]*types.Receipt),
@@ -85,20 +90,19 @@ func NewOverlayState(ctx context.Context, ec *rpc.Client, bn int64) *OverlayStat
 func (s *OverlayState) Derive(reason string) *OverlayState {
 	// log.Printf("derive from: %s, depth: %d", reason, s.deriveCnt+1)
 	return &OverlayState{
-		// ctx:        s.ctx,
-		// ec:         s.ec,
-		// conn:       ethclient.NewClient(s.ec),
-		// bn:         s.bn,
 		parent:     s,
-		scratchPad: make(map[common.Hash][]byte),
+		scratchPad: make(map[string][]byte),
 		txLogs:     make(map[common.Hash][]*types.Log),
 		logs:       make([]*types.Log, 0),
 		receipts:   make(map[common.Hash]*types.Receipt),
 		deriveCnt:  s.deriveCnt + 1,
+
+		stateID: rand.Uint64(),
 	}
 }
 
 func (s *OverlayState) Pop() *OverlayState {
+	s.scratchPad = make(map[string][]byte)
 	return s.parent
 }
 
@@ -165,26 +169,10 @@ func (s *OverlayState) loadAccount(account common.Address) (*AccountResult, []by
 	return &result, code, nil
 }
 
-func (s *OverlayState) loadStateBatchRPC(storageReqs []StorageReq) ([]StorageReq, error) {
+func (s *OverlayState) loadStateBatchRPC(storageReqs []*StorageReq) error {
 	// TODO: dedup
-	// reqCache := make(map[common.Hash]StorageReq)
 
-	// var value common.Hash
-	// var err error
-	// if val, ok := reqCache[storageReq.Hash()]; ok {
-	// 	value = val.Value
-	// 	err = val.Error
-	// } else {
-	// 	s.rpcCnt++
-	// 	value, err = s.loadStateRPC(storageReq.Address, storageReq.Key)
-	// }
-	// if err != nil {
-	// 	storageReq.Error = err
-	// } else {
-	// 	storageReq.Value = value
-	// }
-	// reqCache[storageReq.Hash()] = storageReq
-
+	s.rpcCnt++
 	reqs := make([]rpc.BatchElem, len(storageReqs))
 	values := make([]common.Hash, len(storageReqs))
 	bn := big.NewInt(s.bn)
@@ -197,13 +185,14 @@ func (s *OverlayState) loadStateBatchRPC(storageReqs []StorageReq) ([]StorageReq
 		}
 	}
 	if err := s.ec.BatchCallContext(s.ctx, reqs); err != nil {
-		return nil, err
+		return err
 	}
-	for i := range reqs {
+	for i := range storageReqs {
 		storageReqs[i].Value = values[i]
 		// log.Printf("ReqHash: %s", storageReqs[i].Hash().Hex())
+		// log.Printf("Batch Reqs: [%s].%s=%s", storageReqs[i].Address.Hex(), storageReqs[i].Key.Hex(), storageReqs[i].Value.Hex())
 	}
-	return storageReqs, nil
+	return nil
 }
 
 func (s *OverlayState) loadStateRPC(account common.Address, key common.Hash) (common.Hash, error) {
@@ -225,25 +214,24 @@ func (s *OverlayState) timeSlot() {
 		}
 		select {
 		case <-ticker.C:
-			reqPending := make([]StorageReq, reqLen)
+			reqPending := make([]*StorageReq, reqLen)
 			reqChanPending := make([]chan StorageReq, reqLen)
 			for i := 0; i < reqLen; i++ {
 				req := <-s.reqChan
 				storageReq := <-req
-				reqPending[i] = storageReq
+				reqPending[i] = &storageReq
 				reqChanPending[i] = req
 			}
 			if reqLen == 0 {
 				continue
 			}
-			s.rpcCnt++
-			results, err := s.loadStateBatchRPC(reqPending)
+			err := s.loadStateBatchRPC(reqPending)
 			if err != nil {
 				log.Panic("loadStateBatch, err: ", err)
 			}
 			for i := 0; i < reqLen; i++ {
 				req := reqChanPending[i]
-				req <- results[i]
+				req <- *reqPending[i]
 				close(req)
 			}
 
@@ -260,14 +248,48 @@ func (s *OverlayState) loadState(account common.Address, key common.Hash) (commo
 	return result.Value, result.Error
 }
 
-func calcKey(account common.Address, key common.Hash) common.Hash {
-	return crypto.Keccak256Hash(account.Bytes(), key.Bytes())
+func calcKey(op common.Hash, account common.Address) string {
+	return string(append(op.Bytes(), account.Bytes()...))
 }
 
-func calcStateKey(account common.Address, key common.Hash) common.Hash {
-	getStateKey := calcKey(account, STATE_KEY)
-	stateKey := crypto.Keccak256Hash(getStateKey.Bytes(), key.Bytes())
+func calcStateKey(account common.Address, key common.Hash) string {
+	getStateKey := calcKey(STATE_KEY, account)
+	stateKey := getStateKey + string(key.Bytes())
 	return stateKey
+}
+
+func (s *OverlayState) resetScratchPad() {
+	s.scratchPadMutex.Lock()
+	log.Printf("[reset scratchpad] lock scratchPad")
+
+	reqs := make([]*StorageReq, 0)
+	for key := range s.scratchPad {
+		keyBytes := []byte(key)
+		if len(keyBytes) == 32+20+32 && common.BytesToHash(keyBytes[:32]) == STATE_KEY {
+			acc := common.BytesToAddress(keyBytes[32 : 32+20])
+			key := common.BytesToHash(keyBytes[32+20:])
+			reqs = append(reqs, &StorageReq{Address: acc, Key: key})
+		}
+	}
+	err := s.loadStateBatchRPC(reqs)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	log.Printf("[reset scratchpad] sweeping scratchPad")
+	s.scratchPad = make(map[string][]byte)
+
+	for _, result := range reqs {
+		stateKey := calcStateKey(result.Address, result.Key)
+		s.scratchPad[stateKey] = result.Value[:]
+		// log.Printf("resetted: [%s].%s=0x%02x\nstateKey: 0x%02x", result.Address.Hex(), result.Key.Hex(), s.scratchPad[stateKey], stateKey)
+	}
+
+	log.Printf("[reset scratchpad] pre fetch done, slot num: %d", len(s.scratchPad))
+
+	s.scratchPadMutex.Unlock()
+	log.Printf("[reset scratchpad] unlock scratchPad")
+
 }
 
 func (s *OverlayState) get(account common.Address, action RequestType, key common.Hash) ([]byte, error) {
@@ -275,28 +297,30 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 		log.Printf("State BN: %d", s.bn)
 		s.lastBN = s.bn
 	}
-	var scratchpadKey common.Hash
+	var scratchpadKey string
 	switch action {
 	case GET_BALANCE:
-		scratchpadKey = calcKey(account, BALANCE_KEY)
+		scratchpadKey = calcKey(BALANCE_KEY, account)
 	case GET_NONCE:
-		scratchpadKey = calcKey(account, NONCE_KEY)
+		scratchpadKey = calcKey(NONCE_KEY, account)
 	case GET_CODE:
-		scratchpadKey = calcKey(account, CODE_KEY)
+		scratchpadKey = calcKey(CODE_KEY, account)
 	case GET_CODEHASH:
-		scratchpadKey = calcKey(account, CODEHASH_KEY)
+		scratchpadKey = calcKey(CODEHASH_KEY, account)
 	case GET_STATE:
 		scratchpadKey = calcStateKey(account, key)
 	}
 
 	if s.parent == nil {
-		s.scratchPadMutex.RLock()
-		// defer s.scratchPadMutex.Unlock()
+		s.scratchPadMutex.Lock()
 		if val, ok := s.scratchPad[scratchpadKey]; ok {
-			s.scratchPadMutex.RUnlock()
+			if action == GET_STATE {
+				// log.Printf("got state at root, acc[%s].%s=0x%02x\nstateKey: %02x", account.Hex(), key.Hex(), val, scratchpadKey)
+			}
+			s.scratchPadMutex.Unlock()
 			return val, nil
 		}
-		s.scratchPadMutex.RUnlock()
+		s.scratchPadMutex.Unlock()
 
 		var res []byte
 	UPDATE_BN_AND_RETRY:
@@ -311,22 +335,18 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 				}
 				s.bn = int64(bn)
 				log.Printf("Resetting State... BN: %d", bn)
-				s.scratchPadMutex.Lock()
-				s.scratchPad = make(map[common.Hash][]byte)
-				s.scratchPadMutex.Unlock()
+				s.resetScratchPad()
 				goto UPDATE_BN_AND_RETRY
 			}
-			// go func() {
-			// 	s.scratchPadMutex.Lock()
-			// 	s.scratchPad[scratchpadKey] = result.Bytes()
-			// 	s.scratchPadMutex.Unlock()
-			// }()
+
 			s.scratchPadMutex.Lock()
 			s.scratchPad[scratchpadKey] = result.Bytes()
+			// log.Printf("underlying get state, acc[%s].%s=%s", account.Hex(), key.Hex(), result.Hex())
 			s.scratchPadMutex.Unlock()
 			res = result.Bytes()
 
 		case GET_BALANCE, GET_NONCE, GET_CODE, GET_CODEHASH:
+			// log.Printf("underlying get account: %s", account.Hex())
 			result, code, err := s.loadAccount(account)
 			if err != nil {
 				log.Print(err)
@@ -336,9 +356,7 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 				}
 				s.bn = int64(bn)
 				log.Printf("Resetting AccountState... BN: %d", bn)
-				s.scratchPadMutex.Lock()
-				s.scratchPad = make(map[common.Hash][]byte)
-				s.scratchPadMutex.Unlock()
+				s.resetScratchPad()
 				goto UPDATE_BN_AND_RETRY
 			}
 			nonce := uint64(result.Nonce)
@@ -346,37 +364,38 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 			codeHash := result.CodeHash
 
 			s.scratchPadMutex.Lock()
-			if _, ok := s.scratchPad[calcKey(account, BALANCE_KEY)]; !ok {
-				s.scratchPad[calcKey(account, BALANCE_KEY)] = balance.Bytes()
+			if _, ok := s.scratchPad[calcKey(BALANCE_KEY, account)]; !ok {
+				s.scratchPad[calcKey(BALANCE_KEY, account)] = balance.Bytes()
 			}
-			if _, ok := s.scratchPad[calcKey(account, NONCE_KEY)]; !ok {
-				s.scratchPad[calcKey(account, NONCE_KEY)] = big.NewInt(int64(nonce)).Bytes()
+			if _, ok := s.scratchPad[calcKey(NONCE_KEY, account)]; !ok {
+				s.scratchPad[calcKey(NONCE_KEY, account)] = big.NewInt(int64(nonce)).Bytes()
 			}
-			if _, ok := s.scratchPad[calcKey(account, CODE_KEY)]; !ok {
-				s.scratchPad[calcKey(account, CODE_KEY)] = code
+			if _, ok := s.scratchPad[calcKey(CODE_KEY, account)]; !ok {
+				s.scratchPad[calcKey(CODE_KEY, account)] = code
 			}
-			if _, ok := s.scratchPad[calcKey(account, CODEHASH_KEY)]; !ok {
-				s.scratchPad[calcKey(account, CODEHASH_KEY)] = codeHash[:]
+			if _, ok := s.scratchPad[calcKey(CODEHASH_KEY, account)]; !ok {
+				s.scratchPad[calcKey(CODEHASH_KEY, account)] = codeHash.Bytes()
 			}
-			s.scratchPadMutex.Unlock()
 
-			s.scratchPadMutex.RLock()
 			switch action {
 			case GET_BALANCE:
-				res = s.scratchPad[calcKey(account, BALANCE_KEY)]
+				res = s.scratchPad[calcKey(BALANCE_KEY, account)]
 			case GET_NONCE:
-				res = s.scratchPad[calcKey(account, NONCE_KEY)]
+				res = s.scratchPad[calcKey(NONCE_KEY, account)]
 			case GET_CODE:
-				res = s.scratchPad[calcKey(account, CODE_KEY)]
+				res = s.scratchPad[calcKey(CODE_KEY, account)]
 			case GET_CODEHASH:
-				res = s.scratchPad[calcKey(account, CODEHASH_KEY)]
+				res = s.scratchPad[calcKey(CODEHASH_KEY, account)]
 			}
-			s.scratchPadMutex.RUnlock()
+			s.scratchPadMutex.Unlock()
 		}
 		return res, nil
 
 	} else {
 		if val, ok := s.scratchPad[scratchpadKey]; ok {
+			if action == GET_STATE {
+				// log.Printf("got state at [depth:%d stateID: %02x], acc[%s].%s=0x%02x", s.deriveCnt, s.stateID, account.Hex(), key.Hex(), val)
+			}
 			return val, nil
 		}
 		return s.parent.get(account, action, key)
@@ -389,16 +408,16 @@ func (s *OverlayState) DeriveFromRoot() *OverlayState {
 		if tmpState.parent == nil {
 			return tmpState.Derive("from root")
 		} else {
-			tmpState = tmpState.Pop()
+			tmpState = tmpState.parent
 		}
 	}
 }
 
 type OverlayStateDB struct {
-	ctx       context.Context
-	ec        *rpc.Client
-	conn      *ethclient.Client
-	block     int
+	ctx  context.Context
+	ec   *rpc.Client
+	conn *ethclient.Client
+	// block     int
 	refundGas uint64
 	state     *OverlayState
 }
@@ -409,24 +428,31 @@ func (db *OverlayStateDB) GetOverlayDepth() int64 {
 
 func NewOverlayStateDB(rpcClient *rpc.Client, blockNumber int) (db *OverlayStateDB) {
 	db = &OverlayStateDB{
-		ctx:       context.Background(),
-		ec:        rpcClient,
-		conn:      ethclient.NewClient(rpcClient),
-		block:     blockNumber,
+		ctx:  context.Background(),
+		ec:   rpcClient,
+		conn: ethclient.NewClient(rpcClient),
+		// block:     blockNumber,
 		refundGas: 0,
 	}
-	state := NewOverlayState(db.ctx, db.ec, int64(db.block)).Derive("protect underlying") // protect underlying state
+	state := NewOverlayState(db.ctx, db.ec, int64(blockNumber)).Derive("protect underlying") // protect underlying state
 	db.state = state
 	return db
 }
 
 func (db *OverlayStateDB) CloseCache() {
 	tmpDB := db.state
+	reason := "reset and protect underlying"
 	for {
 		if tmpDB.parent == nil {
 			db.state = tmpDB
+			db.state.resetScratchPad()
+			log.Print(reason)
+			// log.Printf("pre driveID: %d", db.state.deriveCnt)
+			db.state = db.state.Derive(reason)
+			// log.Printf("post driveID: %d", db.state.deriveCnt)
 			break
 		} else {
+			// log.Printf("pop scratchPad from: %d", tmpDB.deriveCnt)
 			tmpDB = tmpDB.Pop()
 		}
 	}
@@ -441,7 +467,7 @@ func (db *OverlayStateDB) SubBalance(account common.Address, delta *big.Int) {
 	}
 	balB := new(big.Int).SetBytes(bal)
 	post := balB.Sub(balB, delta)
-	db.state.scratchPad[calcKey(account, BALANCE_KEY)] = post.Bytes()
+	db.state.scratchPad[calcKey(BALANCE_KEY, account)] = post.Bytes()
 }
 
 func (db *OverlayStateDB) AddBalance(account common.Address, delta *big.Int) {
@@ -451,7 +477,7 @@ func (db *OverlayStateDB) AddBalance(account common.Address, delta *big.Int) {
 	}
 	balB := new(big.Int).SetBytes(bal)
 	post := balB.Add(balB, delta)
-	db.state.scratchPad[calcKey(account, BALANCE_KEY)] = post.Bytes()
+	db.state.scratchPad[calcKey(BALANCE_KEY, account)] = post.Bytes()
 }
 
 func (db *OverlayStateDB) InitFakeAccounts() {
@@ -471,7 +497,7 @@ func (db *OverlayStateDB) GetBalance(account common.Address) *big.Int {
 }
 
 func (db *OverlayStateDB) SetBalance(account common.Address, balance *big.Int) {
-	db.state.scratchPad[calcKey(account, BALANCE_KEY)] = balance.Bytes()
+	db.state.scratchPad[calcKey(BALANCE_KEY, account)] = balance.Bytes()
 }
 
 func (db *OverlayStateDB) GetNonce(account common.Address) uint64 {
@@ -483,7 +509,7 @@ func (db *OverlayStateDB) GetNonce(account common.Address) uint64 {
 	return nonceB.Uint64()
 }
 func (db *OverlayStateDB) SetNonce(account common.Address, nonce uint64) {
-	db.state.scratchPad[calcKey(account, NONCE_KEY)] = big.NewInt(int64(nonce)).Bytes()
+	db.state.scratchPad[calcKey(NONCE_KEY, account)] = big.NewInt(int64(nonce)).Bytes()
 }
 
 func (db *OverlayStateDB) GetCodeHash(account common.Address) common.Hash {
@@ -495,8 +521,10 @@ func (db *OverlayStateDB) GetCodeHash(account common.Address) common.Hash {
 }
 
 func (db *OverlayStateDB) SetCodeHash(account common.Address, codeHash common.Hash) {
-	db.state.scratchPad[calcKey(account, CODEHASH_KEY)] = codeHash.Bytes()
-	log.Printf("SetCodeHash[depth:%d]: acc: %s key: %s, codehash: %s", db.state.deriveCnt, account.Hex(), calcKey(account, CODEHASH_KEY).Hex(), codeHash.Hex())
+	db.state.scratchPad[calcKey(CODEHASH_KEY, account)] = codeHash.Bytes()
+	if account.Hex() != (common.Address{}).Hex() {
+		// log.Printf("SetCodeHash[depth:%d]: acc: %s key: %s, codehash: %s", db.state.deriveCnt, account.Hex(), calcKey( CODEHASH_KEY).Hex(), codeHash.Hex())
+	}
 }
 
 func (db *OverlayStateDB) GetCode(account common.Address) []byte {
@@ -508,7 +536,7 @@ func (db *OverlayStateDB) GetCode(account common.Address) []byte {
 }
 
 func (db *OverlayStateDB) SetCode(account common.Address, code []byte) {
-	db.state.scratchPad[calcKey(account, CODE_KEY)] = code
+	db.state.scratchPad[calcKey(CODE_KEY, account)] = code
 }
 
 func (db *OverlayStateDB) GetCodeSize(account common.Address) int {
@@ -533,23 +561,23 @@ func (db *OverlayStateDB) GetCommittedState(account common.Address, key common.H
 
 func (db *OverlayStateDB) GetState(account common.Address, key common.Hash) common.Hash {
 	v := db.GetCommittedState(account, key)
-	// log.Printf("[R] Acc: %s K: %s V: %s", account.Hex(), key.Hex(), v.Hex())
+	// log.Printf("[R depth:%d, stateID:%02x] Acc: %s K: %s V: %s", db.state.deriveCnt, db.state.stateID, account.Hex(), key.Hex(), v.Hex())
 	// log.Printf("Fetched: %s [%s] = %s", account.Hex(), key.Hex(), v.Hex())
 	return v
 }
 
 func (db *OverlayStateDB) SetState(account common.Address, key common.Hash, value common.Hash) {
-	// log.Printf("[W] Acc: %s K: %s V: %s", account.Hex(), key.Hex(), value.Hex())
+	// log.Printf("[W depth:%d stateID:%02x] Acc: %s K: %s V: %s", db.state.deriveCnt, db.state.stateID, account.Hex(), key.Hex(), value.Hex())
 	db.state.scratchPad[calcStateKey(account, key)] = value.Bytes()
 }
 
 func (db *OverlayStateDB) Suicide(account common.Address) bool {
-	db.state.scratchPad[calcKey(account, SUICIDE_KEY)] = []byte{0x01}
+	db.state.scratchPad[calcKey(SUICIDE_KEY, account)] = []byte{0x01}
 	return true
 }
 
 func (db *OverlayStateDB) HasSuicided(account common.Address) bool {
-	if val, ok := db.state.scratchPad[calcKey(account, SUICIDE_KEY)]; ok {
+	if val, ok := db.state.scratchPad[calcKey(SUICIDE_KEY, account)]; ok {
 		return bytes.Equal(val, []byte{0x01})
 	}
 	return false
@@ -620,10 +648,10 @@ func (db *OverlayStateDB) MergeTo(revisionID int) {
 
 func (db *OverlayStateDB) Clone() *OverlayStateDB {
 	cpy := &OverlayStateDB{
-		ctx:       db.ctx,
-		ec:        db.ec,
-		conn:      db.conn,
-		block:     db.block,
+		ctx:  db.ctx,
+		ec:   db.ec,
+		conn: db.conn,
+		// block:     db.block,
 		refundGas: 0,
 		state:     db.state.Derive("clone"),
 	}
@@ -632,10 +660,10 @@ func (db *OverlayStateDB) Clone() *OverlayStateDB {
 
 func (db *OverlayStateDB) CloneFromRoot() *OverlayStateDB {
 	cpy := &OverlayStateDB{
-		ctx:       db.ctx,
-		ec:        db.ec,
-		conn:      db.conn,
-		block:     db.block,
+		ctx:  db.ctx,
+		ec:   db.ec,
+		conn: db.conn,
+		// block:     db.block,
 		refundGas: 0,
 		state:     db.state.DeriveFromRoot(),
 	}
@@ -682,7 +710,7 @@ func (db *OverlayStateDB) GetReceipt(txHash common.Hash) *types.Receipt {
 		if receipt, ok := tmpStateDB.receipts[txHash]; ok {
 			return receipt
 		}
-		tmpStateDB = tmpStateDB.Pop()
+		tmpStateDB = tmpStateDB.parent
 	}
 }
 
