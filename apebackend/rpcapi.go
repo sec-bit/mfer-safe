@@ -250,22 +250,33 @@ func (s *ApeAPI) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bo
 }
 
 func (s *ApeAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
-	var bn *big.Int
+	var response map[string]interface{}
 	switch number {
 	case rpc.LatestBlockNumber:
-		bn = nil
+		{
+			prevBlock, err := s.b.EVM.Conn.BlockByNumber(ctx, nil)
+			if err != nil {
+				return nil, err
+			}
+			poolTxs, _ := s.b.TxPool.GetPoolTxs()
+			prevHeader := prevBlock.Header()
+			prevHeader.Number.Add(prevHeader.Number, big.NewInt(1))
+			prevHeader.Time += 10
+			currBlock := types.NewBlockWithHeader(prevHeader).WithBody(poolTxs, nil)
+			response, err = RPCMarshalBlock(currBlock, true, false)
+			if err != nil {
+				return nil, err
+			}
+			response["hash"] = common.HexToHash("0xcafecafecafecafecafecafecafecafecafecafecafecafecafecafecafecafe")
+
+		}
 	case rpc.PendingBlockNumber:
-		latestBH := s.b.EVM.GetLatestBlockHeader()
-		bn = latestBH.Number
+		return response, nil
 	default:
-		bn = big.NewInt(int64(number))
-	}
-	block, err := s.b.EVM.Conn.BlockByNumber(ctx, bn)
-	if err != nil {
-		return nil, err
-	}
-	var response map[string]interface{}
-	if block != nil && err == nil {
+		block, err := s.b.EVM.Conn.BlockByNumber(ctx, big.NewInt(int64(number)))
+		if err != nil {
+			return nil, err
+		}
 		response, err = RPCMarshalBlock(block, true, false)
 		if err == nil && number == rpc.PendingBlockNumber {
 			// Pending blocks need to nil out a few fields
@@ -273,24 +284,10 @@ func (s *ApeAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, f
 				response[field] = nil
 			}
 		}
-	} else {
-		prevBlock, err := s.b.EVM.Conn.BlockByNumber(ctx, big.NewInt(number.Int64()-1))
-		if err != nil {
-			return nil, err
-		}
-		poolTxs, _ := s.b.TxPool.GetPoolTxs()
-		prevHeader := prevBlock.Header()
-		prevHeader.Number.Add(prevHeader.Number, big.NewInt(1))
-		prevHeader.Time += 10
-		currBlock := types.NewBlockWithHeader(prevHeader).WithBody(poolTxs, nil)
-		response, err = RPCMarshalBlock(currBlock, true, false)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	response["miner"] = common.HexToAddress("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-	response["totalDifficulty"] = hexutil.EncodeBig(big.NewInt(3141592653589793))
+	response["totalDifficulty"] = "0xcafebabe0a9e5afe"
 	return response, nil
 
 	// _ = block
