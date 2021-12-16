@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/dynm/ape-safer/apetracer"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -193,34 +194,57 @@ type storageEntry struct {
 }
 
 // StorageRangeAt returns the storage at the given block height and transaction index.
-func (s *DebugAPI) StorageRangeAt(blockHash common.Hash, txIndex int, contractAddress common.Address, keyStart hexutil.Bytes, maxResult int) (StorageRangeResult, error) {
-	// Retrieve the block
+func (s *DebugAPI) StorageRangeAt(ctx context.Context, blockHash common.Hash, txIdxOrHash interface{}, contractAddress common.Address, keyStart hexutil.Bytes, maxResult int) (StorageRangeResult, error) {
+	var txIndex int
+	txs, _ := s.b.TxPool.GetPoolTxs()
+	switch txIdxOrHash := txIdxOrHash.(type) {
+	case int:
+		txIndex = txIdxOrHash
+		if txIndex >= len(txs) {
+			return StorageRangeResult{}, fmt.Errorf("tx[%d] not found", txIndex)
+		}
+	case common.Hash:
+		found := false
+		for i := 0; i < len(txs); i++ {
+			if txs[i].Hash() == txIdxOrHash {
+				txIndex = i
+				found = true
+			}
+		}
+		if !found {
+			return StorageRangeResult{}, fmt.Errorf("tx[%s] not found", txIdxOrHash)
+		}
+	}
+	log.Printf("blockHash: %s, idx: %d, contractAddress: %s, keyStart: %s, maxResult: %d", blockHash.Hex(), txIndex, contractAddress.Hex(), keyStart.String(), maxResult)
 
-	// if s.b.EVM.StateDB == nil {
-	return StorageRangeResult{}, fmt.Errorf("account %x doesn't exist", contractAddress)
+	var result StorageRangeResult
+	result.Storage = make(storageMap)
+
+	// retrive all previous txs for state mutation
+	// txs = txs[:txIndex]
+
+	// Run the transaction with tracing enabled.
+	stateDB := s.b.EVM.StateDB.CloneFromRoot()
+	stateDB.InitFakeAccounts()
+	tracer := apetracer.NewStateTracer()
+	s.b.EVM.SetTracer(tracer)
+
+	for _, tx := range txs {
+		msg := s.b.EVM.TxToMessage(tx)
+		s.b.EVM.DoCall(&msg, true, stateDB) //collect trace
+		s.b.EVM.ExecuteTxs(types.Transactions{tx}, stateDB)
+	}
+
+	touchedState := tracer.GetResult()
+	spew.Dump(touchedState)
+	contractState := touchedState[contractAddress]
+
+	for key := range contractState {
+		val := stateDB.GetState(contractAddress, key)
+		result.Storage[key] = storageEntry{Key: &key, Value: val}
+	}
+
+	return result, nil
 	// }
 	// return storageRangeAt(s.b.EVM.StateDB, keyStart, maxResult)
 }
-
-// func storageRangeAt(st *apestate.OverlayStateDB, start []byte, maxResult int) (StorageRangeResult, error) {
-// 	it := trie.NewIterator(st.NodeIterator(start))
-// 	result := StorageRangeResult{Storage: storageMap{}}
-// 	for i := 0; i < maxResult && it.Next(); i++ {
-// 		_, content, _, err := rlp.Split(it.Value)
-// 		if err != nil {
-// 			return StorageRangeResult{}, err
-// 		}
-// 		e := storageEntry{Value: common.BytesToHash(content)}
-// 		if preimage := st.GetKey(it.Key); preimage != nil {
-// 			preimage := common.BytesToHash(preimage)
-// 			e.Key = &preimage
-// 		}
-// 		result.Storage[common.BytesToHash(it.Key)] = e
-// 	}
-// 	// Add the 'next key' so clients can continue downloading.
-// 	if it.Next() {
-// 		next := common.BytesToHash(it.Key)
-// 		result.NextKey = &next
-// 	}
-// 	return result, nil
-// }
