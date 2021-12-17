@@ -1,5 +1,4 @@
 import React from "react";
-// import "./TxDataTable.css";
 import Link from "@mui/material/Link";
 import fourByte from "4byte";
 import { ethers } from "ethers";
@@ -81,7 +80,7 @@ class TxDataOverview extends React.Component {
               txsCache: JSON.stringify(txs),
             });
           } else {
-            console.log("txs not changes");
+            console.log("txs no change");
           }
         },
         (error) => {

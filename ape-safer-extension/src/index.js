@@ -1,11 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import "./index.css";
-// import { BrowserRouter } from "react-router-dom";
-// import ButtonToolbar from "./ButtonToolbar";
-// import TxDataTable from "./TxDataTable";
-// import SimulateView from "./SimulateView";
-// import SettingsView from "./SettingsView";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 

@@ -77,9 +77,7 @@ class SettingsView extends React.Component {
               label="ApeSafer RPC"
             />
           </div>
-          <Button onClick={() => this.save()}>
-            💾Save (Restart your browser please.)
-          </Button>
+          <Button onClick={() => this.save()}>💾Save</Button>
         </Box>
       </div>
     );

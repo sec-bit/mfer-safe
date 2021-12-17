@@ -82,7 +82,7 @@ class SimulateView extends React.Component {
               id="outlined-read-only-input"
               value={this.state.approveInfo.safeAddr}
               label="To"
-              defaultValue="Safe Contract Address"
+              // defaultValue="Safe Contract Address"
               InputProps={{
                 readOnly: true,
               }}
@@ -92,8 +92,8 @@ class SimulateView extends React.Component {
             <TextField
               id="outlined-read-only-input"
               value={this.state.approveInfo.execCalldata}
-              label="Exec Calldata"
-              defaultValue="Multisend Call"
+              label="ExecTransaction Calldata"
+              // defaultValue="Multisend Call"
               InputProps={{
                 readOnly: true,
               }}
@@ -103,8 +103,8 @@ class SimulateView extends React.Component {
             <TextField
               id="outlined-read-only-input"
               value={this.state.approveInfo.approveHashCalldata}
-              label="Approve CallData"
-              defaultValue="ApproveHash Calldata"
+              label="ApproveHash CallData"
+              // defaultValue="ApproveHash Calldata"
               InputProps={{
                 readOnly: true,
               }}
@@ -115,7 +115,7 @@ class SimulateView extends React.Component {
               id="outlined-read-only-input"
               value={this.state.approveInfo.dataHash}
               label="Data Hash"
-              defaultValue="eth_sign data"
+              // defaultValue="eth_sign data"
               InputProps={{
                 readOnly: true,
               }}
@@ -125,8 +125,8 @@ class SimulateView extends React.Component {
             <TextField
               id="outlined-read-only-input"
               value={this.state.calltrace}
-              label="Call Trace"
-              defaultValue="Simulation Result"
+              label="Simulation Trace"
+              // defaultValue="Simulation Result"
               InputProps={{
                 readOnly: true,
               }}
@@ -136,8 +136,8 @@ class SimulateView extends React.Component {
             <TextField
               id="outlined-read-only-input"
               value={this.state.approveInfo.revertError}
-              label="Result"
-              defaultValue="Execution Result"
+              label="Execution Result"
+              // defaultValue="Execution Result"
               InputProps={{
                 readOnly: true,
               }}
