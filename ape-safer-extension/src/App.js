@@ -9,6 +9,7 @@ import SimulateView from "./SimulateView";
 import SettingsView from "./SettingsView";
 import TxDataOverview from "./TxDataOverview";
 import TraceView from "./TraceView";
+import DebugView from "./DebugView";
 
 function App() {
   const [path, setPath] = useState({});
@@ -29,19 +30,11 @@ function App() {
     case "trace":
       page = <TraceView />;
       break;
+    case "debug":
+      page = <DebugView />;
+      break;
   }
   return page;
-
-  // return (
-  //   <div className="App">
-  //     <h1>Keep Degen And Ape In!</h1>
-  //     <Routes>
-  //       <Route path="/" element={<Home />} />
-  //       <Route path="/txs" element={<TxDataOverview />} />
-  //       <Route path="/trace/:txhash" element={<TraceView />} />
-  //     </Routes>
-  //   </div>
-  // );
 }
 
 // App.js

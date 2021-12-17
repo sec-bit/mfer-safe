@@ -66,7 +66,7 @@ class TxDataTable extends React.Component {
               txsCache: JSON.stringify(txs),
             });
           } else {
-            console.log("txs not changes");
+            console.log("txs no change");
           }
         },
         (error) => {
