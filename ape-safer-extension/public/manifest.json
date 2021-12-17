@@ -13,7 +13,6 @@
     ]
   },
   "web_accessible_resources": [
-    "provider.js",
     "index.html"
   ],
   "permissions": [
