@@ -7,6 +7,12 @@
 
   var apesafer_server = "http://127.0.0.1:10545/";
 
+  chrome.storage.onChanged.addListener(function (changes, namespace) {
+    console.log(changes, namespace);
+    apesafer_server = changes["apesafer-rpc"].newValue;
+    console.log("redir server updated, new rpc:", apesafer_server);
+    needExclude[apesafer_server] = true;
+  });
   chrome.storage.local.get(["apesafer-rpc"], (items) => {
     if (items["apesafer-rpc"] !== undefined) {
       apesafer_server = items["apesafer-rpc"];
