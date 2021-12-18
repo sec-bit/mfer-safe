@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/dustin/go-humanize"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 
-	"github.com/dustin/go-humanize"
 	"github.com/dynm/ape-safer/apesigner"
 	"github.com/dynm/ape-safer/apestate"
 	"github.com/dynm/ape-safer/constant"
@@ -181,16 +181,39 @@ func (a *ApeEVM) GetVMContext() vm.BlockContext {
 }
 
 func (a *ApeEVM) updatePendingBN() {
+	headerChan := make(chan *types.Header)
 	ticker5Sec := time.NewTicker(time.Second * 5)
+
+	sub, err := a.Conn.SubscribeNewHead(a.ctx, headerChan)
+	if err != nil {
+		log.Printf("subscribe err: %v, use poll instead", err)
+	} else {
+		ticker5Sec.Stop()
+		go func() {
+			for {
+				<-sub.Err()
+				log.Printf("sub err=%v, use poll instead", err)
+				sub, err = a.Conn.SubscribeNewHead(a.ctx, headerChan)
+				if err != nil {
+					log.Printf("sub err=%v, retrying", err)
+					time.Sleep(time.Second)
+				}
+			}
+		}()
+
+	}
 	for {
 		select {
 		case <-ticker5Sec.C:
 			a.setVMContext()
-			sizeStr := humanize.Bytes(uint64(a.StateDB.CacheSize()))
-			log.Printf("[Update] BN: %d, Ts: %d, Diff: %d, GasLimit: %d, Cache: %s, RPCReq: %d, StateBlock: %d",
-				a.vmContext.BlockNumber, a.vmContext.Time, a.vmContext.Difficulty, a.vmContext.GasLimit, sizeStr, a.StateDB.RPCRequestCount(), a.StateDB.StateBlockNumber())
+		case <-headerChan:
+			a.setVMContext()
 		}
+		sizeStr := humanize.Bytes(uint64(a.StateDB.CacheSize()))
+		fmt.Printf("\n[Update] BN: %d, Ts: %d, Diff: %d, GasLimit: %d, Cache: %s, RPCReq: %d, StateBlock: %d\n",
+			a.vmContext.BlockNumber, a.vmContext.Time, a.vmContext.Difficulty, a.vmContext.GasLimit, sizeStr, a.StateDB.RPCRequestCount(), a.StateDB.StateBlockNumber())
 	}
+
 }
 
 var (
