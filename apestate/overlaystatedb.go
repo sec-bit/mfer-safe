@@ -1,11 +1,14 @@
 package apestate
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"fmt"
 	"log"
 	"math/big"
 	"math/rand"
+	"os"
 	"sync"
 	"time"
 
@@ -16,6 +19,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/tj/go-spin"
 )
 
 type AccountResult struct {
@@ -63,6 +67,9 @@ type OverlayState struct {
 	reqChan                         chan chan StorageReq
 	loadAccountMutex                *sync.Mutex
 
+	upstreamReqCh chan bool
+	clientReqCh   chan bool
+
 	stateID uint64
 }
 
@@ -82,8 +89,12 @@ func NewOverlayState(ctx context.Context, ec *rpc.Client, bn int64) *OverlayStat
 		deriveCnt:        0,
 		reqChan:          make(chan chan StorageReq, 500),
 		loadAccountMutex: &sync.Mutex{},
+
+		upstreamReqCh: make(chan bool, 100),
+		clientReqCh:   make(chan bool, 100),
 	}
 	go state.timeSlot()
+	go state.statistics()
 	return state
 }
 
@@ -126,8 +137,6 @@ var (
 )
 
 func (s *OverlayState) loadAccount(account common.Address) (*AccountResult, []byte, error) {
-	// s.loadAccountMutex.Lock()
-	// defer s.loadAccountMutex.Unlock()
 	var result AccountResult
 	var code hexutil.Bytes
 	rpcTries := 0
@@ -173,6 +182,7 @@ func (s *OverlayState) loadStateBatchRPC(storageReqs []*StorageReq) error {
 	// TODO: dedup
 
 	s.rpcCnt++
+	s.upstreamReqCh <- true
 	reqs := make([]rpc.BatchElem, len(storageReqs))
 	values := make([]common.Hash, len(storageReqs))
 	bn := big.NewInt(s.bn)
@@ -197,6 +207,7 @@ func (s *OverlayState) loadStateBatchRPC(storageReqs []*StorageReq) error {
 
 func (s *OverlayState) loadStateRPC(account common.Address, key common.Hash) (common.Hash, error) {
 	s.rpcCnt++
+	s.upstreamReqCh <- true
 	storage, err := s.conn.StorageAt(s.ctx, account, key, big.NewInt(s.bn))
 	if err != nil {
 		return common.Hash{}, err
@@ -244,6 +255,37 @@ func (s *OverlayState) timeSlot() {
 	}
 }
 
+func (db *OverlayState) statistics() {
+	spinnerUpstream := &spin.Spinner{}
+	spinnerUpstream.Set("🌍🌎🌏")
+	spinnerClient := &spin.Spinner{}
+	spinnerClient.Set("▁▂▃▄▅▆▇█▇▆▅▄▃▁")
+
+	upstreamReqCnt := 0
+	clientReqCnt := 0
+	upstreamSpinStr := "-"
+	clientSpinStr := "-"
+	statisticsStr := "\rUpstream %s  [%d]\tDownstream %s  [%d]  \033[36m\033[m"
+
+	ticker := time.NewTicker(time.Second)
+	for {
+		select {
+		case <-db.upstreamReqCh:
+			upstreamReqCnt++
+			upstreamSpinStr = spinnerUpstream.Next()
+			fmt.Printf(statisticsStr, upstreamSpinStr, upstreamReqCnt, clientSpinStr, clientReqCnt)
+		case <-db.clientReqCh:
+			clientReqCnt++
+			clientSpinStr = spinnerClient.Next()
+			fmt.Printf(statisticsStr, upstreamSpinStr, upstreamReqCnt, clientSpinStr, clientReqCnt)
+		case <-ticker.C:
+			upstreamSpinStr = spinnerUpstream.Next()
+			clientSpinStr = spinnerClient.Next()
+			fmt.Printf(statisticsStr, upstreamSpinStr, upstreamReqCnt, clientSpinStr, clientReqCnt)
+		}
+	}
+}
+
 func (s *OverlayState) loadState(account common.Address, key common.Hash) (common.Hash, error) {
 	retChan := make(chan StorageReq)
 	s.reqChan <- retChan
@@ -267,6 +309,25 @@ func (s *OverlayState) resetScratchPad() {
 	s.scratchPadMutex.Lock()
 	log.Printf("[reset scratchpad] lock scratchPad")
 
+	f, err := os.OpenFile("scratchPadKeyCache.txt", os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		log.Panicf("openfile error: %v", err)
+	}
+	defer f.Close()
+
+	log.Printf("[reset scratchpad] load cached scratchPad key")
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		txt := scanner.Text()
+		log.Printf("state key cache: %s", txt)
+
+		s.scratchPad[string(common.Hex2Bytes(txt))] = []byte{}
+		if scanner.Err() != nil {
+			break
+		}
+	}
+
+	cachedStr := ""
 	reqs := make([]*StorageReq, 0)
 	for key := range s.scratchPad {
 		keyBytes := []byte(key)
@@ -274,12 +335,19 @@ func (s *OverlayState) resetScratchPad() {
 			acc := common.BytesToAddress(keyBytes[32 : 32+20])
 			key := common.BytesToHash(keyBytes[32+20:])
 			reqs = append(reqs, &StorageReq{Address: acc, Key: key})
+			cachedStr += (common.Bytes2Hex(keyBytes) + "\n")
+			if err != nil {
+				log.Printf("write string err: %v", err)
+			}
 		}
 	}
-	err := s.loadStateBatchRPC(reqs)
+
+	err = s.loadStateBatchRPC(reqs)
 	if err != nil {
 		log.Panic(err)
 	}
+	// f.Truncate(0)
+	f.WriteString(cachedStr)
 
 	log.Printf("[reset scratchpad] sweeping scratchPad")
 	s.scratchPad = make(map[string][]byte)
@@ -317,6 +385,7 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 	}
 
 	if s.parent == nil {
+		s.clientReqCh <- true
 		s.scratchPadMutex.Lock()
 		if val, ok := s.scratchPad[scratchpadKey]; ok {
 			if action == GET_STATE {
