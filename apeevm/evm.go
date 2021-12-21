@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -127,6 +128,7 @@ func (a *ApeEVM) Prepare() {
 
 	if a.StateDB == nil {
 		a.StateDB = apestate.NewOverlayStateDB(a.RpcClient, int(lastBlockHeader.Number.Uint64()))
+		a.StateDB.CloseCache()
 	}
 	a.StateDB.InitFakeAccounts()
 
@@ -183,6 +185,7 @@ func (a *ApeEVM) GetVMContext() vm.BlockContext {
 func (a *ApeEVM) updatePendingBN() {
 	headerChan := make(chan *types.Header)
 	ticker5Sec := time.NewTicker(time.Second * 5)
+	tickerCheckMissingTireNode := time.NewTicker(time.Second * 10)
 
 	sub, err := a.Conn.SubscribeNewHead(a.ctx, headerChan)
 	if err != nil {
@@ -204,13 +207,24 @@ func (a *ApeEVM) updatePendingBN() {
 	}
 	for {
 		select {
+		case <-tickerCheckMissingTireNode.C:
+			stateHeight := a.StateDB.StateBlockNumber()
+			log.Printf("Checking if hight@%d(%02x) is missing", stateHeight, stateHeight)
+			_, err := a.Conn.BalanceAt(a.ctx, common.HexToAddress("0x0000000000000000000000000000000000000000"), big.NewInt(stateHeight))
+			if err != nil {
+				log.Print(err)
+			}
+			if err != nil && strings.Contains(err.Error(), "missing trie node") {
+				a.StateDB.CloseCache()
+			}
+
 		case <-ticker5Sec.C:
 			a.setVMContext()
 		case <-headerChan:
 			a.setVMContext()
 		}
 		sizeStr := humanize.Bytes(uint64(a.StateDB.CacheSize()))
-		fmt.Printf("\n[Update] BN: %d, Ts: %d, Diff: %d, GasLimit: %d, Cache: %s, RPCReq: %d, StateBlock: %d\n",
+		fmt.Printf("[Update] BN: %d, Ts: %d, Diff: %d, GasLimit: %d, Cache: %s, RPCReq: %d, StateBlock: %d\n",
 			a.vmContext.BlockNumber, a.vmContext.Time, a.vmContext.Difficulty, a.vmContext.GasLimit, sizeStr, a.StateDB.RPCRequestCount(), a.StateDB.StateBlockNumber())
 	}
 
