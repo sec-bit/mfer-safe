@@ -58,14 +58,19 @@ type OverlayState struct {
 	scratchPadMutex *sync.RWMutex
 	scratchPad      map[string][]byte
 
+	accessedAccountsMutex *sync.RWMutex
+	accessedAccounts      map[common.Address]bool
+
 	logs                            []*types.Log
 	txLogs                          map[common.Hash][]*types.Log
 	receipts                        map[common.Hash]*types.Receipt
 	currentTxHash, currentBlockHash common.Hash
 	deriveCnt                       int64
 	rpcCnt                          int64
-	reqChan                         chan chan StorageReq
-	loadAccountMutex                *sync.Mutex
+	storageReqChan                  chan chan StorageReq
+	accReqChan                      chan chan FetchedAccountResult
+
+	loadAccountMutex *sync.Mutex
 
 	upstreamReqCh chan bool
 	clientReqCh   chan bool
@@ -83,11 +88,15 @@ func NewOverlayState(ctx context.Context, ec *rpc.Client, bn int64) *OverlayStat
 		scratchPadMutex: &sync.RWMutex{},
 		scratchPad:      make(map[string][]byte),
 
+		accessedAccountsMutex: &sync.RWMutex{},
+		accessedAccounts:      make(map[common.Address]bool),
+
 		txLogs:           make(map[common.Hash][]*types.Log),
 		logs:             make([]*types.Log, 0),
 		receipts:         make(map[common.Hash]*types.Receipt),
 		deriveCnt:        0,
-		reqChan:          make(chan chan StorageReq, 500),
+		storageReqChan:   make(chan chan StorageReq, 500),
+		accReqChan:       make(chan chan FetchedAccountResult, 200),
 		loadAccountMutex: &sync.Mutex{},
 
 		upstreamReqCh: make(chan bool, 100),
@@ -136,14 +145,107 @@ var (
 	SUICIDE_KEY  = crypto.Keccak256Hash([]byte("apesafer-suicide-state"))
 )
 
-func (s *OverlayState) loadAccount(account common.Address) (*AccountResult, []byte, error) {
+type FetchedAccountResult struct {
+	Account  common.Address
+	Balance  hexutil.Big
+	CodeHash common.Hash
+	Nonce    hexutil.Uint64
+	Code     hexutil.Bytes
+}
+
+func (s *OverlayState) loadAccountBatchRPC(accounts []common.Address) ([]FetchedAccountResult, error) {
+	rpcTries := 0
+	bn := big.NewInt(s.bn)
+	hexBN := hexutil.EncodeBig(bn)
+
+	result := make([]FetchedAccountResult, len(accounts))
+	batchElem := make([]rpc.BatchElem, len(accounts)*3)
+
+	for i, account := range accounts {
+		getNonceReq := rpc.BatchElem{
+			Method: "eth_getTransactionCount",
+			Args:   []interface{}{account, hexBN},
+			Result: &result[i].Nonce,
+		}
+
+		getBalanceReq := rpc.BatchElem{
+			Method: "eth_getBalance",
+			Args:   []interface{}{account, hexBN},
+			Result: &result[i].Balance,
+		}
+
+		getCodeReq := rpc.BatchElem{
+			Method: "eth_getCode",
+			Args:   []interface{}{account, hexBN},
+			Result: &result[i].Code,
+		}
+		batchElem[i*3] = getNonceReq
+		batchElem[i*3+1] = getBalanceReq
+		batchElem[i*3+2] = getCodeReq
+
+		s.accessedAccountsMutex.Lock()
+		s.accessedAccounts[account] = true
+		s.accessedAccountsMutex.Unlock()
+	}
+
+	step := 600
+	start := time.Now()
+	for begin := 0; begin < len(batchElem); begin += step {
+		for {
+			s.upstreamReqCh <- true
+			end := begin + step
+			if end > len(batchElem) {
+				end = len(batchElem)
+			}
+			log.Printf("loadAccount batch req(total=%d): begin: %d, end: %d", len(batchElem), begin, end)
+			err := s.ec.BatchCallContext(s.ctx, batchElem[begin:end])
+			if err != nil {
+				rpcTries++
+				if rpcTries > 5 {
+					return nil, err
+				} else {
+					log.Print("retrying loadAccountSimple")
+					time.Sleep(100 * time.Millisecond)
+					continue
+				}
+			}
+			break
+		}
+	}
+
+	for i := range accounts {
+		if len(result[i].Code) == 0 {
+			result[i].CodeHash = common.Hash{}
+		} else {
+			result[i].CodeHash = crypto.Keccak256Hash(result[i].Code)
+		}
+	}
+	log.Printf("fetched %d accounts batched@%d (consumes: %v)", len(accounts), s.bn, time.Since(start))
+
+	return result, nil
+}
+
+func (s *OverlayState) loadAccountViaGetProof(account common.Address) (*AccountResult, []byte, error) {
 	var result AccountResult
 	var code hexutil.Bytes
 	rpcTries := 0
-	blockNumber := hexutil.EncodeBig(big.NewInt(int64(s.bn)))
+	hexBN := hexutil.EncodeBig(big.NewInt(int64(s.bn)))
+
+	getProofReq := rpc.BatchElem{
+		Method: "eth_getProof",
+		Args:   []interface{}{account, []string{}, hexBN},
+		Result: &result,
+	}
+
+	getCodeReq := rpc.BatchElem{
+		Method: "eth_getCode",
+		Args:   []interface{}{account, hexBN},
+		Result: &code,
+	}
 
 	for {
-		err := s.ec.CallContext(s.ctx, &result, "eth_getProof", account, []string{}, blockNumber)
+		start := time.Now()
+		err := s.ec.BatchCallContext(s.ctx, []rpc.BatchElem{getProofReq, getCodeReq})
 		if err != nil {
 			rpcTries++
 			if rpcTries > 5 {
@@ -155,26 +257,17 @@ func (s *OverlayState) loadAccount(account common.Address) (*AccountResult, []by
 			}
 		} else {
 			rpcTries = 0
+			if getProofReq.Error != nil {
+				log.Printf("getProof err: %v", getProofReq)
+			}
+			if getCodeReq.Error != nil {
+				log.Printf("getProof err: %v", getCodeReq)
+			}
+			log.Printf("fetched account batched@%d {proof, code}: %s (consumes: %v)", s.bn, account.Hex(), time.Since(start))
 			break
 		}
 	}
 
-	for {
-		err := s.ec.CallContext(s.ctx, &code, "eth_getCode", account, blockNumber)
-		if err != nil {
-			rpcTries++
-			if rpcTries > 5 {
-				return nil, nil, err
-			} else {
-				log.Print("retrying getCode")
-				time.Sleep(100 * time.Millisecond)
-				continue
-			}
-		} else {
-			rpcTries = 0
-			break
-		}
-	}
 	return &result, code, nil
 }
 
@@ -194,13 +287,27 @@ func (s *OverlayState) loadStateBatchRPC(storageReqs []*StorageReq) error {
 			Result: &values[i],
 		}
 	}
-	if err := s.ec.BatchCallContext(s.ctx, reqs); err != nil {
-		return err
+
+	// for i:=0;i<len(storageReqs);i+=2500 {
+
+	// }
+	step := 3000
+	start := time.Now()
+	for begin := 0; begin < len(reqs); begin += step {
+		end := begin + step
+		if end > len(reqs) {
+			end = len(reqs)
+		}
+		log.Printf("loadState batch req(total=%d): begin: %d, end: %d", len(reqs), begin, end)
+		if err := s.ec.BatchCallContext(s.ctx, reqs[begin:end]); err != nil {
+			return err
+		}
 	}
+
+	log.Printf("fetched %d state batched@%d (consumes: %v)", len(reqs), s.bn, time.Since(start))
+
 	for i := range storageReqs {
 		storageReqs[i].Value = values[i]
-		// log.Printf("ReqHash: %s", storageReqs[i].Hash().Hex())
-		// log.Printf("Batch Reqs: [%s].%s=%s", storageReqs[i].Address.Hex(), storageReqs[i].Key.Hex(), storageReqs[i].Value.Hex())
 	}
 	return nil
 }
@@ -217,40 +324,69 @@ func (s *OverlayState) loadStateRPC(account common.Address, key common.Hash) (co
 }
 
 func (s *OverlayState) timeSlot() {
-	ticker := time.NewTicker(time.Millisecond * 3)
+	tickerStorage := time.NewTicker(time.Millisecond * 3)
+	tickerAccount := time.NewTicker(time.Millisecond * 10)
 	for {
-		reqLen := len(s.reqChan)
-		if reqLen > 0 {
-			// log.Printf("Request Len: %d", reqLen)
-		}
+		storageReqLen := len(s.storageReqChan)
+		accReqLen := len(s.accReqChan)
 		select {
-		case <-ticker.C:
-			reqPending := make([]*StorageReq, reqLen)
-			reqChanPending := make([]chan StorageReq, reqLen)
-			for i := 0; i < reqLen; i++ {
-				req := <-s.reqChan
+		case <-tickerStorage.C:
+			storageReqPending := make([]*StorageReq, storageReqLen)
+			storageReqChanPending := make([]chan StorageReq, storageReqLen)
+			for i := 0; i < storageReqLen; i++ {
+				req := <-s.storageReqChan
 				storageReq := <-req
-				reqPending[i] = &storageReq
-				reqChanPending[i] = req
+				storageReqPending[i] = &storageReq
+				storageReqChanPending[i] = req
 			}
-			if reqLen == 0 {
-				continue
-			}
-			for {
-				err := s.loadStateBatchRPC(reqPending)
-				if err != nil {
-					log.Printf("loadStateBatch, err: %v", err)
-					time.Sleep(time.Second * 1)
-				} else {
-					break
+			if storageReqLen > 0 {
+				for {
+					err := s.loadStateBatchRPC(storageReqPending)
+					if err != nil {
+						log.Printf("loadStateBatch, err: %v", err)
+						time.Sleep(time.Second * 1)
+					} else {
+						break
+					}
 				}
 			}
-			for i := 0; i < reqLen; i++ {
-				req := reqChanPending[i]
-				req <- *reqPending[i]
+
+			for i := 0; i < storageReqLen; i++ {
+				req := storageReqChanPending[i]
+				req <- *storageReqPending[i]
 				close(req)
 			}
+		case <-tickerAccount.C:
+			accReqPending := make([]*FetchedAccountResult, accReqLen)
+			accReqChanPending := make([]chan FetchedAccountResult, accReqLen)
+			accounts := make([]common.Address, accReqLen)
+			for i := 0; i < accReqLen; i++ {
+				req := <-s.accReqChan
+				accReq := <-req
+				accReqPending[i] = &accReq
+				accReqChanPending[i] = req
+				accounts[i] = accReq.Account
+			}
 
+			var accResult []FetchedAccountResult
+			var err error
+			if accReqLen > 0 {
+				for {
+					accResult, err = s.loadAccountBatchRPC(accounts)
+					if err != nil {
+						log.Printf("loadAccountBatchRPC, err: %v", err)
+						time.Sleep(time.Second * 1)
+					} else {
+						break
+					}
+				}
+			}
+
+			for i := 0; i < len(accResult); i++ {
+				req := accReqChanPending[i]
+				req <- accResult[i]
+				close(req)
+			}
 		}
 	}
 }
@@ -265,10 +401,11 @@ func (db *OverlayState) statistics() {
 	clientReqCnt := 0
 	upstreamSpinStr := "-"
 	clientSpinStr := "-"
-	statisticsStr := "\rUpstream %s  [%d]\tDownstream %s  [%d]  \033[36m\033[m"
+	statisticsStr := "\nUpstream %s  [%d]\tDownstream %s  [%d]"
 
 	ticker := time.NewTicker(time.Second)
 	for {
+		fmt.Print("\033[G\033[K")
 		select {
 		case <-db.upstreamReqCh:
 			upstreamReqCnt++
@@ -283,16 +420,26 @@ func (db *OverlayState) statistics() {
 			clientSpinStr = spinnerClient.Next()
 			fmt.Printf(statisticsStr, upstreamSpinStr, upstreamReqCnt, clientSpinStr, clientReqCnt)
 		}
+		fmt.Printf("\033[A")
 	}
 }
 
-func (s *OverlayState) loadState(account common.Address, key common.Hash) (common.Hash, error) {
+func (s *OverlayState) loadState(account common.Address, key common.Hash) common.Hash {
 	retChan := make(chan StorageReq)
-	s.reqChan <- retChan
+	s.storageReqChan <- retChan
 	retChan <- StorageReq{Address: account, Key: key}
 	result := <-retChan
 	// spew.Dump(result)
-	return result.Value, result.Error
+	return result.Value
+}
+
+func (s *OverlayState) loadAccount(account common.Address) FetchedAccountResult {
+	retChan := make(chan FetchedAccountResult)
+	s.accReqChan <- retChan
+	retChan <- FetchedAccountResult{Account: account}
+	result := <-retChan
+	// spew.Dump(result)
+	return result
 }
 
 func calcKey(op common.Hash, account common.Address) string {
@@ -305,8 +452,9 @@ func calcStateKey(account common.Address, key common.Hash) string {
 	return stateKey
 }
 
-func (s *OverlayState) resetScratchPad() {
+func (s *OverlayState) resetScratchPad(bn int64) {
 	s.scratchPadMutex.Lock()
+	s.bn = bn
 	log.Printf("[reset scratchpad] lock scratchPad")
 
 	f, err := os.OpenFile("scratchPadKeyCache.txt", os.O_RDWR|os.O_CREATE, 0666)
@@ -319,9 +467,9 @@ func (s *OverlayState) resetScratchPad() {
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		txt := scanner.Text()
-		log.Printf("state key cache: %s", txt)
+		// log.Printf("state key cache: %s", txt)
 
-		s.scratchPad[string(common.Hex2Bytes(txt))] = []byte{}
+		s.scratchPad[string(STATE_KEY.Bytes())+string(common.Hex2Bytes(txt))] = []byte{}
 		if scanner.Err() != nil {
 			break
 		}
@@ -333,9 +481,12 @@ func (s *OverlayState) resetScratchPad() {
 		keyBytes := []byte(key)
 		if len(keyBytes) == 32+20+32 && common.BytesToHash(keyBytes[:32]) == STATE_KEY {
 			acc := common.BytesToAddress(keyBytes[32 : 32+20])
+			s.accessedAccountsMutex.Lock()
+			s.accessedAccounts[acc] = true
+			s.accessedAccountsMutex.Unlock()
 			key := common.BytesToHash(keyBytes[32+20:])
 			reqs = append(reqs, &StorageReq{Address: acc, Key: key})
-			cachedStr += (common.Bytes2Hex(keyBytes) + "\n")
+			cachedStr += (common.Bytes2Hex(keyBytes[32:]) + "\n")
 			if err != nil {
 				log.Printf("write string err: %v", err)
 			}
@@ -346,7 +497,8 @@ func (s *OverlayState) resetScratchPad() {
 	if err != nil {
 		log.Panic(err)
 	}
-	// f.Truncate(0)
+	f.Truncate(0)
+	f.Seek(0, 0)
 	f.WriteString(cachedStr)
 
 	log.Printf("[reset scratchpad] sweeping scratchPad")
@@ -358,7 +510,30 @@ func (s *OverlayState) resetScratchPad() {
 		// log.Printf("resetted: [%s].%s=0x%02x\nstateKey: 0x%02x", result.Address.Hex(), result.Key.Hex(), s.scratchPad[stateKey], stateKey)
 	}
 
-	log.Printf("[reset scratchpad] pre fetch done, slot num: %d", len(s.scratchPad))
+	log.Printf("[reset scratchpad] state prefetch done, slot num: %d", len(s.scratchPad))
+
+	log.Printf("[reset scratchpad] prefetching %d accounts", len(s.accessedAccounts))
+	accounts := make([]common.Address, 0)
+	s.accessedAccountsMutex.RLock()
+	for k := range s.accessedAccounts {
+		accounts = append(accounts, k)
+	}
+	s.accessedAccountsMutex.RUnlock()
+
+	accountResults, err := s.loadAccountBatchRPC(accounts)
+	if err != nil {
+		log.Panic(err)
+	}
+	for i := range accountResults {
+		nonce := uint64(accountResults[i].Nonce)
+		balance := accountResults[i].Balance.ToInt()
+		codeHash := accountResults[i].CodeHash
+		s.scratchPad[calcKey(BALANCE_KEY, accounts[i])] = balance.Bytes()
+		s.scratchPad[calcKey(NONCE_KEY, accounts[i])] = big.NewInt(int64(nonce)).Bytes()
+		s.scratchPad[calcKey(CODE_KEY, accounts[i])] = accountResults[i].Code
+		s.scratchPad[calcKey(CODEHASH_KEY, accounts[i])] = codeHash.Bytes()
+	}
+	log.Printf("[reset scratchpad] account prefetch done")
 
 	s.scratchPadMutex.Unlock()
 	log.Printf("[reset scratchpad] unlock scratchPad")
@@ -397,21 +572,21 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 		s.scratchPadMutex.Unlock()
 
 		var res []byte
-	UPDATE_BN_AND_RETRY:
+		// UPDATE_BN_AND_RETRY:
 		switch action {
 		case GET_STATE:
-			result, err := s.loadState(account, key)
-			if err != nil {
-				log.Print(err)
-				bn, err := s.conn.BlockNumber(s.ctx)
-				if err != nil {
-					log.Panic(err)
-				}
-				s.bn = int64(bn)
-				log.Printf("Resetting State... BN: %d", bn)
-				s.resetScratchPad()
-				goto UPDATE_BN_AND_RETRY
-			}
+			result := s.loadState(account, key)
+			// result, err := s.loadState(account, key)
+			// if err != nil {
+			// 	log.Print(err)
+			// 	bn, err := s.conn.BlockNumber(s.ctx)
+			// 	if err != nil {
+			// 		log.Panic(err)
+			// 	}
+			// 	log.Printf("Resetting State... BN: %d", bn)
+			// 	s.resetScratchPad(int64(bn))
+			// 	goto UPDATE_BN_AND_RETRY
+			// }
 
 			s.scratchPadMutex.Lock()
 			s.scratchPad[scratchpadKey] = result.Bytes()
@@ -421,18 +596,19 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 
 		case GET_BALANCE, GET_NONCE, GET_CODE, GET_CODEHASH:
 			// log.Printf("underlying get account: %s", account.Hex())
-			result, code, err := s.loadAccount(account)
-			if err != nil {
-				log.Print(err)
-				bn, err := s.conn.BlockNumber(s.ctx)
-				if err != nil {
-					log.Panic(err)
-				}
-				s.bn = int64(bn)
-				log.Printf("Resetting AccountState... BN: %d", bn)
-				s.resetScratchPad()
-				goto UPDATE_BN_AND_RETRY
-			}
+			// result, err := s.loadAccount(account)
+			result := s.loadAccount(account)
+			// result, code, err := s.loadAccount(account)
+			// if err != nil {
+			// 	log.Print(err)
+			// 	bn, err := s.conn.BlockNumber(s.ctx)
+			// 	if err != nil {
+			// 		log.Panic(err)
+			// 	}
+			// 	log.Printf("Resetting AccountState... BN: %d", bn)
+			// 	s.resetScratchPad(int64(bn))
+			// 	goto UPDATE_BN_AND_RETRY
+			// }
 			nonce := uint64(result.Nonce)
 			balance := result.Balance.ToInt()
 			codeHash := result.CodeHash
@@ -445,7 +621,7 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 				s.scratchPad[calcKey(NONCE_KEY, account)] = big.NewInt(int64(nonce)).Bytes()
 			}
 			if _, ok := s.scratchPad[calcKey(CODE_KEY, account)]; !ok {
-				s.scratchPad[calcKey(CODE_KEY, account)] = code
+				s.scratchPad[calcKey(CODE_KEY, account)] = result.Code
 			}
 			if _, ok := s.scratchPad[calcKey(CODEHASH_KEY, account)]; !ok {
 				s.scratchPad[calcKey(CODEHASH_KEY, account)] = codeHash.Bytes()
@@ -476,15 +652,19 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 	}
 }
 
-func (s *OverlayState) DeriveFromRoot() *OverlayState {
+func (s *OverlayState) getRootState() *OverlayState {
 	tmpState := s
 	for {
 		if tmpState.parent == nil {
-			return tmpState.Derive("from root")
+			return tmpState
 		} else {
 			tmpState = tmpState.parent
 		}
 	}
+}
+
+func (s *OverlayState) DeriveFromRoot() *OverlayState {
+	return s.getRootState().Derive("from root")
 }
 
 type OverlayStateDB struct {
@@ -519,7 +699,12 @@ func (db *OverlayStateDB) CloseCache() {
 	for {
 		if tmpDB.parent == nil {
 			db.state = tmpDB
-			db.state.resetScratchPad()
+			bn, err := db.conn.BlockNumber(db.ctx)
+			if err != nil {
+				log.Panic(err)
+			}
+			log.Printf("Resetting Scratchpad... BN: %d", bn)
+			db.state.resetScratchPad(int64(bn))
 			log.Print(reason)
 			// log.Printf("pre driveID: %d", db.state.deriveCnt)
 			db.state = db.state.Derive(reason)
@@ -745,7 +930,7 @@ func (db *OverlayStateDB) CloneFromRoot() *OverlayStateDB {
 }
 
 func (db *OverlayStateDB) CacheSize() (size int) {
-	root := db.state.DeriveFromRoot().parent
+	root := db.state.getRootState()
 	root.scratchPadMutex.RLock()
 	defer root.scratchPadMutex.RUnlock()
 	for k, v := range root.scratchPad {
@@ -755,11 +940,11 @@ func (db *OverlayStateDB) CacheSize() (size int) {
 }
 
 func (db *OverlayStateDB) RPCRequestCount() (cnt int64) {
-	return db.state.DeriveFromRoot().parent.rpcCnt
+	return db.state.getRootState().rpcCnt
 }
 
 func (db *OverlayStateDB) StateBlockNumber() (cnt int64) {
-	return db.state.DeriveFromRoot().parent.bn
+	return db.state.getRootState().bn
 }
 
 func (db *OverlayStateDB) AddLog(vLog *types.Log) {
