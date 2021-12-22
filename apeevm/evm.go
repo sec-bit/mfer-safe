@@ -100,7 +100,7 @@ func (a *ApeEVM) ResetState() {
 	if lastBlockHeader == nil {
 		return
 	}
-	a.StateDB.CloseCache()
+	a.StateDB.InitState()
 	a.gasPool = new(core.GasPool)
 	a.gasPool.AddGas(lastBlockHeader.GasLimit)
 }
@@ -128,7 +128,7 @@ func (a *ApeEVM) Prepare() {
 
 	if a.StateDB == nil {
 		a.StateDB = apestate.NewOverlayStateDB(a.RpcClient, int(lastBlockHeader.Number.Uint64()))
-		a.StateDB.CloseCache()
+		a.StateDB.InitState()
 	}
 	a.StateDB.InitFakeAccounts()
 
@@ -209,13 +209,17 @@ func (a *ApeEVM) updatePendingBN() {
 		select {
 		case <-tickerCheckMissingTireNode.C:
 			stateHeight := a.StateDB.StateBlockNumber()
-			log.Printf("Checking if hight@%d(%02x) is missing", stateHeight, stateHeight)
-			_, err := a.Conn.BalanceAt(a.ctx, common.HexToAddress("0x0000000000000000000000000000000000000000"), big.NewInt(stateHeight))
+			log.Printf("Checking if height@%d(0x%02x) is missing", stateHeight, stateHeight)
+			balance, err := a.Conn.BalanceAt(a.ctx, common.HexToAddress("0x0000000000000000000000000000000000000000"), big.NewInt(stateHeight))
 			if err != nil {
 				log.Print(err)
 			}
 			if err != nil && strings.Contains(err.Error(), "missing trie node") {
-				a.StateDB.CloseCache()
+				log.Print("InitState (missing trie node)")
+				a.StateDB.InitState()
+			} else if balance.Sign() == 0 {
+				log.Print("InitState (0x0000...0000 balance is zero)")
+				a.StateDB.InitState()
 			}
 
 		case <-ticker5Sec.C:
@@ -224,8 +228,8 @@ func (a *ApeEVM) updatePendingBN() {
 			a.setVMContext()
 		}
 		sizeStr := humanize.Bytes(uint64(a.StateDB.CacheSize()))
-		fmt.Printf("[Update] BN: %d, Ts: %d, Diff: %d, GasLimit: %d, Cache: %s, RPCReq: %d, StateBlock: %d\n",
-			a.vmContext.BlockNumber, a.vmContext.Time, a.vmContext.Difficulty, a.vmContext.GasLimit, sizeStr, a.StateDB.RPCRequestCount(), a.StateDB.StateBlockNumber())
+		fmt.Printf("[Update] BN: %d, StateBlock: %d, Ts: %d, Diff: %d, GasLimit: %d, Cache: %s, RPCReq: %d\n",
+			a.vmContext.BlockNumber, a.StateDB.StateBlockNumber(), a.vmContext.Time, a.vmContext.Difficulty, a.vmContext.GasLimit, sizeStr, a.StateDB.RPCRequestCount())
 	}
 
 }

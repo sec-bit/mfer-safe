@@ -693,7 +693,7 @@ func NewOverlayStateDB(rpcClient *rpc.Client, blockNumber int) (db *OverlayState
 	return db
 }
 
-func (db *OverlayStateDB) CloseCache() {
+func (db *OverlayStateDB) InitState() {
 	tmpDB := db.state
 	reason := "reset and protect underlying"
 	for {

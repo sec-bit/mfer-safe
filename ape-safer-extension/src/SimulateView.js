@@ -2,6 +2,7 @@ import React from "react";
 import Button from "@material-ui/core/Button";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
+import ReactJson from "react-json-view";
 import { docall } from "./utils.js";
 
 class SimulateView extends React.Component {
@@ -24,7 +25,7 @@ class SimulateView extends React.Component {
           if (result.hasOwnProperty("result")) {
             if (result.result.hasOwnProperty("debugTrace")) {
               this.setState({
-                calltrace: JSON.stringify(result.result.debugTrace, null, 2),
+                calltrace: result.result.debugTrace,
                 approveInfo: {
                   safeAddr: result.result.to,
                   approveHashCalldata: result.result.approveHashCallData,
@@ -80,9 +81,8 @@ class SimulateView extends React.Component {
           <div>
             <TextField
               id="outlined-read-only-input"
-              value={this.state.approveInfo.safeAddr}
+              value={this.state.approveInfo.safeAddr || ""}
               label="To"
-              // defaultValue="Safe Contract Address"
               InputProps={{
                 readOnly: true,
               }}
@@ -91,9 +91,8 @@ class SimulateView extends React.Component {
           <div>
             <TextField
               id="outlined-read-only-input"
-              value={this.state.approveInfo.execCalldata}
+              value={this.state.approveInfo.execCalldata || ""}
               label="ExecTransaction Calldata"
-              // defaultValue="Multisend Call"
               InputProps={{
                 readOnly: true,
               }}
@@ -102,9 +101,8 @@ class SimulateView extends React.Component {
           <div>
             <TextField
               id="outlined-read-only-input"
-              value={this.state.approveInfo.approveHashCalldata}
+              value={this.state.approveInfo.approveHashCalldata || ""}
               label="ApproveHash CallData"
-              // defaultValue="ApproveHash Calldata"
               InputProps={{
                 readOnly: true,
               }}
@@ -113,9 +111,8 @@ class SimulateView extends React.Component {
           <div>
             <TextField
               id="outlined-read-only-input"
-              value={this.state.approveInfo.dataHash}
+              value={this.state.approveInfo.dataHash || ""}
               label="Data Hash"
-              // defaultValue="eth_sign data"
               InputProps={{
                 readOnly: true,
               }}
@@ -124,23 +121,18 @@ class SimulateView extends React.Component {
           <div>
             <TextField
               id="outlined-read-only-input"
-              value={this.state.calltrace}
-              label="Simulation Trace"
-              // defaultValue="Simulation Result"
-              InputProps={{
-                readOnly: true,
-              }}
-            />
-          </div>
-          <div>
-            <TextField
-              id="outlined-read-only-input"
-              value={this.state.approveInfo.revertError}
+              value={this.state.approveInfo.revertError || ""}
               label="Execution Result"
-              // defaultValue="Execution Result"
               InputProps={{
                 readOnly: true,
               }}
+            />
+          </div>
+          <div>
+            <ReactJson
+              src={this.state.calltrace || {}}
+              displayDataTypes={false}
+              enableClipboard={false}
             />
           </div>
         </Box>

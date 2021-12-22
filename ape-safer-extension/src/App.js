@@ -33,18 +33,24 @@ function App() {
     case "debug":
       page = <DebugView />;
       break;
+    case "safemultisend":
+      page = <SimulateView />;
+      break;
   }
-  return page;
+  return (
+    <React.StrictMode>
+      <ButtonToolbar />
+      {page}
+    </React.StrictMode>
+  );
 }
 
 // App.js
 function Home() {
   return (
     <React.StrictMode>
-      <ButtonToolbar />
-      <SimulateView />
-      <TxDataTable />
       <SettingsView />
+      <TxDataTable />
     </React.StrictMode>
   );
 }

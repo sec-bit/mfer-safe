@@ -12,6 +12,18 @@ class SettingsView extends React.Component {
       rpc: "http://127.0.0.1:10545",
     };
 
+    if (!chrome.storage) {
+      chrome.storage = {
+        local: {
+          get: (args, callback) =>
+            new Promise((resolve, reject) => {
+              callback({ "apesafer-rpc": "http://127.0.0.1:10545" });
+            }),
+          set: (args) => console.log(args),
+        },
+      };
+    }
+
     chrome.storage.local.get(["apesafer-rpc"], (items) => {
       console.log("get items:", items);
       if (items["apesafer-rpc"] === undefined) {
