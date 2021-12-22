@@ -8,7 +8,6 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/dynm/ape-safer/apesigner"
-	"github.com/dynm/ape-safer/apestate"
 	"github.com/dynm/ape-safer/multisend"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -118,7 +117,7 @@ func (s *ApeActionAPI) GetTxs() ([]*TxData, error) {
 }
 
 func (s *ApeActionAPI) getSafeOwnersAndThreshold(safeAddr common.Address) ([]common.Address, int, error) {
-	safe, err := multisend.NewGnosisSafe(safeAddr, s.b.EVM.Conn)
+	safe, err := multisend.NewGnosisSafe(safeAddr, s.b.EVM.SelfConn)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -194,8 +193,8 @@ func (s *ApeActionAPI) SimulateSafeExec(ctx context.Context, safeOwners []common
 		log.Printf("safeOwner[%d]: %s", i, safeOwner.Hex())
 	}
 
-	latestHeader := s.b.EVM.GetLatestBlockHeader()
-	simulationStateDB := apestate.NewOverlayStateDB(s.b.EVM.RpcClient, int(latestHeader.Number.Int64()))
+	// s.b.EVM.StateDB.InitState()
+	simulationStateDB := s.b.EVM.StateDB.CloneFromRoot()
 
 	msData := &MultiSendData{
 		TxData:              txData,
