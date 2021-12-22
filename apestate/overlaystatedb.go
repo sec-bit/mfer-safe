@@ -682,10 +682,9 @@ func (db *OverlayStateDB) GetOverlayDepth() int64 {
 
 func NewOverlayStateDB(rpcClient *rpc.Client, blockNumber int) (db *OverlayStateDB) {
 	db = &OverlayStateDB{
-		ctx:  context.Background(),
-		ec:   rpcClient,
-		conn: ethclient.NewClient(rpcClient),
-		// block:     blockNumber,
+		ctx:       context.Background(),
+		ec:        rpcClient,
+		conn:      ethclient.NewClient(rpcClient),
 		refundGas: 0,
 	}
 	state := NewOverlayState(db.ctx, db.ec, int64(blockNumber)).Derive("protect underlying") // protect underlying state
