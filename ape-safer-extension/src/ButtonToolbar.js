@@ -47,6 +47,38 @@ class ButtonToolbar extends React.Component {
         <Toolbar>
           <Button
             onClick={() => {
+              window.open("?page=home", "_self");
+            }}
+          >
+            🏠Home
+          </Button>
+          <Button
+            onClick={() => {
+              window.open("?page=txs", "_self");
+            }}
+          >
+            🗒️Txn List
+          </Button>
+          <Button
+            onClick={() => {
+              window.open("?page=safemultisend", "_self");
+            }}
+          >
+            📦Gnosis Safe
+          </Button>
+          <Button
+            onClick={() => {
+              const searchParams = new URLSearchParams(window.location.search);
+              const viewpath = searchParams.get("page");
+              window.open("?page=" + viewpath, "_blank");
+            }}
+          >
+            🖥Extended View
+          </Button>
+        </Toolbar>
+        <Toolbar>
+          <Button
+            onClick={() => {
               docall("ape_reExecTxPool", []);
             }}
           >
@@ -54,13 +86,6 @@ class ButtonToolbar extends React.Component {
           </Button>
           <Button onClick={() => docall("ape_clearTxPool", [])}>
             🗑Clear TxPool
-          </Button>
-          <Button
-            onClick={() => {
-              window.open("?page=txs", "_blank");
-            }}
-          >
-            🗒️View All Txs
           </Button>
         </Toolbar>
       </Box>

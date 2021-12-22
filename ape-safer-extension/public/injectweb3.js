@@ -6,22 +6,18 @@ function codeToInject() {
           return;
         }
 
-        // switch (args.method) {
-        //   case "eth_chainId":
-        //     if (this.chainId !== "0x00") {
-        //       return new Promise(function (resolve, reject) {
-        //         resolve(this.chainId);
-        //       });
-        //     }
-        //     break;
-        //   case "net_version":
-        //     if (this.netVersion !== "0") {
-        //       return new Promise(function (resolve, reject) {
-        //         resolve(this.netVersion);
-        //       });
-        //     }
-        //     break;
-        // }
+        switch (args.method) {
+          case "eth_chainId":
+            if (this.chainId !== "0x00") {
+              return Promise.resolve(this.chainId);
+            }
+            break;
+          case "net_version":
+            if (this.netVersion !== "0") {
+              return Promise.resolve(this.netVersion);
+            }
+            break;
+        }
 
         if (args && args.params === undefined) {
           args.params = [];
