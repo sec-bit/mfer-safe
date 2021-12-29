@@ -22,6 +22,7 @@ const columns = [
   { field: "method", headerName: "Method", width: 200 },
   { field: "from", headerName: "From", width: 300 },
   { field: "to", headerName: "To", width: 300 },
+  { field: "execResult", headerName: "Result", width: 500 },
 ];
 
 class TxDataOverview extends React.Component {
@@ -116,6 +117,7 @@ class TxDataOverview extends React.Component {
         method: this.state.abi[txdata.calldata],
         from: txdata.from,
         to: txdata.to,
+        execResult: txdata.execResult,
       })
       // <li key={number.toString()}>
       //   {number}
