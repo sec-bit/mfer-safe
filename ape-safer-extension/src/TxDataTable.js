@@ -31,6 +31,10 @@ class TxDataTable extends React.Component {
           if (JSON.stringify(result.result) !== this.state.txsCache) {
             let txs = result.result;
             txs.map((txdata) => {
+              if (txdata.calldata === "0x") {
+                return;
+              }
+
               let selector = ethers.utils.hexDataSlice(txdata.calldata, 0, 4);
               fourByte(selector).then((abis) => {
                 let key = txdata.calldata;

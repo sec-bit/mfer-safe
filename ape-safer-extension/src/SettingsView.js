@@ -4,6 +4,10 @@ import Button from "@material-ui/core/Button";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import { docall } from "./utils.js";
+import SaveIcon from "@mui/icons-material/Save";
+import FaceRetouchingNaturalIcon from "@mui/icons-material/FaceRetouchingNatural";
+import InputAdornment from "@mui/material/InputAdornment";
+import IconButton from "@mui/material/IconButton";
 
 class SettingsView extends React.Component {
   constructor(props) {
@@ -79,17 +83,43 @@ class SettingsView extends React.Component {
               value={this.state.impersonatedAccount}
               onChange={this.handleAccountChange}
               label="Impersonated Account"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      edge="end"
+                      color="primary"
+                      onClick={() => this.impersonate()}
+                    >
+                      <FaceRetouchingNaturalIcon />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
+            {/* <Button onClick={() => this.impersonate()}>🎭Impersonate</Button> */}
           </div>
-          <Button onClick={() => this.impersonate()}>🎭Impersonate</Button>
           <div>
             <TextField
               value={this.state.rpc}
               onChange={this.handleRPCChange}
               label="ApeSafer RPC"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      edge="end"
+                      color="primary"
+                      onClick={() => this.save()}
+                    >
+                      <SaveIcon />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
             />
+            {/* <Button onClick={() => this.save()}>💾Save</Button> */}
           </div>
-          <Button onClick={() => this.save()}>💾Save</Button>
         </Box>
       </div>
     );

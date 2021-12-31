@@ -70,7 +70,7 @@ class ButtonToolbar extends React.Component {
             onClick={() => {
               const searchParams = new URLSearchParams(window.location.search);
               const viewpath = searchParams.get("page");
-              window.open("?page=" + viewpath, "_blank");
+              window.open("?page=" + (viewpath ? viewpath : "home"), "_blank");
             }}
           >
             🖥Extended View
