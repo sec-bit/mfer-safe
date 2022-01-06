@@ -60,6 +60,10 @@ function codeToInject() {
         return true;
       }
 
+      on(args) {
+        console.log(args);
+      }
+
       _metamask = {
         isUnlocked: function () {
           return true;
