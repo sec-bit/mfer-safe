@@ -32,10 +32,11 @@ import (
 )
 
 type ApeEVM struct {
-	ctx       context.Context
-	RpcClient *rpc.Client
-	Conn      *ethclient.Client
-	SelfConn  *ethclient.Client
+	ctx        context.Context
+	RpcClient  *rpc.Client
+	Conn       *ethclient.Client
+	SelfClient *rpc.Client
+	SelfConn   *ethclient.Client
 
 	StateDB             *apestate.OverlayStateDB
 	vmContext           vm.BlockContext
@@ -52,9 +53,12 @@ type ApeEVM struct {
 func NewApeEVM(rawurl string, impersonatedAccount common.Address) *ApeEVM {
 	apeEVM := &ApeEVM{}
 	ctx := context.Background()
+DIAL:
 	RpcClient, err := rpc.DialContext(ctx, rawurl)
 	if err != nil {
-		log.Panic(err)
+		log.Printf("Dial [%s] error: [%v] retrying", rawurl, err)
+		time.Sleep(time.Second * 3)
+		goto DIAL
 	}
 	apeEVM.ctx = ctx
 	apeEVM.RpcClient = RpcClient
@@ -195,11 +199,13 @@ func (a *ApeEVM) updatePendingBN() {
 		go func() {
 			for {
 				<-sub.Err()
-				log.Printf("sub err=%v, use poll instead", err)
+				log.Printf("sub err=%v, resubscribing", err)
+			RESUB:
 				sub, err = a.Conn.SubscribeNewHead(a.ctx, headerChan)
 				if err != nil {
 					log.Printf("sub err=%v, retrying", err)
 					time.Sleep(time.Second)
+					goto RESUB
 				}
 			}
 		}()
@@ -216,10 +222,12 @@ func (a *ApeEVM) updatePendingBN() {
 			}
 			if err != nil && strings.Contains(err.Error(), "missing trie node") {
 				log.Print("InitState (missing trie node)")
-				a.StateDB.InitState()
-			} else if balance.Sign() == 0 {
+				// a.StateDB.InitState()
+				a.SelfClient.Call(nil, "ape_reExecTxPool")
+			} else if balance.Sign() == 0 { //some node will not tell us missing trie node
 				log.Print("InitState (0x0000...0000 balance is zero)")
-				a.StateDB.InitState()
+				// a.StateDB.InitState()
+				a.SelfClient.Call(nil, "ape_reExecTxPool")
 			}
 
 		case <-ticker5Sec.C:

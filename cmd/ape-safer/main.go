@@ -103,6 +103,8 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
+
+	apeEVM.SelfClient = selfRPCClient
 	apeEVM.SelfConn = ethclient.NewClient(selfRPCClient)
 
 	select {}
