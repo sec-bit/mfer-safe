@@ -700,7 +700,9 @@ func (db *OverlayStateDB) InitState() {
 			db.state = tmpDB
 			bn, err := db.conn.BlockNumber(db.ctx)
 			if err != nil {
-				log.Panic(err)
+				log.Printf("getBlockNumber error: %v, retrying", err)
+				time.Sleep(time.Second * 3)
+				continue
 			}
 			log.Printf("Resetting Scratchpad... BN: %d", bn)
 			db.state.resetScratchPad(int64(bn))
