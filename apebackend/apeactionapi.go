@@ -59,6 +59,10 @@ func (s *ApeActionAPI) SetBlockNumberDelta(delta uint64) {
 	s.b.EVM.SetBlockNumberDelta(delta)
 }
 
+func (s *ApeActionAPI) PrintMoney(account common.Address) {
+	s.b.EVM.StateDB.AddBalance(account, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
+}
+
 type TxData struct {
 	Idx          int            `json:"idx"`
 	From         common.Address `json:"from"`

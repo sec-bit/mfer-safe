@@ -6,6 +6,7 @@ import TextField from "@mui/material/TextField";
 import { docall } from "./utils.js";
 import SaveIcon from "@mui/icons-material/Save";
 import FaceRetouchingNaturalIcon from "@mui/icons-material/FaceRetouchingNatural";
+import PrintIcon from "@mui/icons-material/Print";
 import InputAdornment from "@mui/material/InputAdornment";
 import IconButton from "@mui/material/IconButton";
 
@@ -44,6 +45,8 @@ class SettingsView extends React.Component {
 
     this.handleRPCChange = this.handleRPCChange.bind(this);
     this.handleAccountChange = this.handleAccountChange.bind(this);
+    this.handleFaucetReceiverChange =
+      this.handleFaucetReceiverChange.bind(this);
   }
 
   save() {
@@ -58,13 +61,23 @@ class SettingsView extends React.Component {
     docall("ape_impersonate", [this.state.impersonatedAccount]);
   }
 
+  printMoney() {
+    docall("ape_printMoney", [this.state.faucetReceiver]);
+  }
+
   handleRPCChange(event) {
     console.log("event:", event);
     this.setState({ rpc: event.target.value });
   }
+
   handleAccountChange(event) {
     console.log("event:", event);
     this.setState({ impersonatedAccount: event.target.value });
+  }
+
+  handleFaucetReceiverChange(event) {
+    console.log("event:", event);
+    this.setState({ faucetReceiver: event.target.value });
   }
 
   render() {
@@ -97,7 +110,26 @@ class SettingsView extends React.Component {
                 ),
               }}
             />
-            {/* <Button onClick={() => this.impersonate()}>🎭Impersonate</Button> */}
+          </div>
+          <div>
+            <TextField
+              value={this.state.faucetReceiver}
+              onChange={this.handleFaucetReceiverChange}
+              label="Void Ether"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      edge="end"
+                      color="primary"
+                      onClick={() => this.printMoney()}
+                    >
+                      <PrintIcon />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
           </div>
           <div>
             <TextField
