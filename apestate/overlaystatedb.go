@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"math/rand"
 	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -456,12 +457,25 @@ func (s *OverlayState) resetScratchPad(bn int64) {
 	s.scratchPadMutex.Lock()
 	s.bn = bn
 	log.Printf("[reset scratchpad] lock scratchPad")
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		log.Panic(err)
+	}
+	cacheDir = path.Join(cacheDir, "xyz.donttrustverify.apesafer")
+	err = os.MkdirAll(cacheDir, os.ModePerm)
+	if err != nil {
+		log.Panic(err)
+	}
 
-	f, err := os.OpenFile("scratchPadKeyCache.txt", os.O_RDWR|os.O_CREATE, 0666)
+	fileName := "scratchPadKeyCache.txt"
+	cacheFilePath := path.Join(cacheDir, fileName)
+
+	f, err := os.OpenFile(cacheFilePath, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		log.Panicf("openfile error: %v", err)
 	}
 	defer f.Close()
+	fmt.Printf("cache saved @ %s\n", cacheFilePath)
 
 	log.Printf("[reset scratchpad] load cached scratchPad key")
 	scanner := bufio.NewScanner(f)
