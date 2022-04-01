@@ -10,6 +10,7 @@ import SettingsView from "./SettingsView";
 import TxDataOverview from "./TxDataOverview";
 import TraceView from "./TraceView";
 import DebugView from "./DebugView";
+import NavigationBar from "./NavigationBar";
 
 function App() {
   const [path, setPath] = useState({});
@@ -36,6 +37,12 @@ function App() {
     case "safemultisend":
       page = <SimulateView />;
       break;
+    case "navigationbar":
+      return (
+        <React.StrictMode>
+          <NavigationBar />
+        </React.StrictMode>
+      );
   }
   return (
     <React.StrictMode>
