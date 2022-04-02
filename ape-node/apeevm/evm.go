@@ -117,7 +117,8 @@ func (a *ApeEVM) Prepare() {
 	a.chainConfig = core.DefaultGenesisBlock().Config
 	chainID, err := a.Conn.ChainID(a.ctx)
 	if err != nil {
-		log.Panic(err)
+		log.Print(err)
+		return
 	}
 	a.chainConfig.ChainID = chainID
 

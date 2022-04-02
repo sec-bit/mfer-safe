@@ -66,7 +66,7 @@ class ButtonToolbar extends React.Component {
           >
             📦Gnosis Safe
           </Button>
-          <Button
+          {/* <Button
             onClick={() => {
               const searchParams = new URLSearchParams(window.location.search);
               const viewpath = searchParams.get("page");
@@ -74,7 +74,7 @@ class ButtonToolbar extends React.Component {
             }}
           >
             🖥Extended View
-          </Button>
+          </Button> */}
         </Toolbar>
         <Toolbar>
           <Button
