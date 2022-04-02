@@ -7,7 +7,11 @@
             "request": "launch",
             "mode": "debug",
             "program": "${file}",
-            "args":["-upstream=ws://tractor.local:9546", "-account=0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "-listen=0.0.0.0:10545"],
+            "args": [
+                "-upstream=ws://localhost:9546",
+                "-account=0x3A8C500843Bf792ebbb11E246af599a2806b796E",
+                // "-listen=0.0.0.0:10545"
+            ],
         }
     ]
 }

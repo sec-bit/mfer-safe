@@ -1,5 +1,6 @@
 {
-  "name": "ape-safer-extension",
+  "homepage": "./",
+  "name": "ape-safer-frontend",
   "version": "0.1.0",
   "private": true,
   "dependencies": {

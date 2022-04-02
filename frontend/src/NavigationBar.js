@@ -73,7 +73,7 @@ export default function NavigationBar() {
     if (window.api === undefined) {
       window.api = { receive: () => {} };
     }
-    window.api.receive("fromMain", (data) => {
+    window.api.receive("target", (data) => {
       console.log(`Received ${data} from main process`);
       setTarget(data);
     });

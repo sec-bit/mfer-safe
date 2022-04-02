@@ -14,34 +14,8 @@ class SettingsView extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      rpc: "http://127.0.0.1:10545",
+      rpc: "ws://127.0.0.1:9546",
     };
-
-    if (!chrome.storage) {
-      chrome.storage = {
-        local: {
-          get: (args, callback) =>
-            new Promise((resolve, reject) => {
-              callback({ "apesafer-rpc": "http://127.0.0.1:10545" });
-            }),
-          set: (args) => console.log(args),
-        },
-      };
-    }
-
-    chrome.storage.local.get(["apesafer-rpc"], (items) => {
-      console.log("get items:", items);
-      if (items["apesafer-rpc"] === undefined) {
-        console.log("items undefined");
-        var localrpc = "http://127.0.0.1:10545";
-        chrome.storage.local.set({ "apesafer-rpc": localrpc }, function () {
-          console.log("set apesafer rpc endpoint to localhost");
-          items["apesafer-rpc"] = localrpc;
-        });
-      }
-      console.log("items:", items, "val:", items["apesafer-rpc"]);
-      this.setState({ rpc: items["apesafer-rpc"] });
-    });
 
     this.handleRPCChange = this.handleRPCChange.bind(this);
     this.handleAccountChange = this.handleAccountChange.bind(this);
@@ -51,10 +25,7 @@ class SettingsView extends React.Component {
 
   save() {
     console.log("save state:", this.state.rpc);
-    chrome.storage.local.set(
-      { "apesafer-rpc": this.state.rpc },
-      function () {}
-    );
+    window.api.send("settings", { setrpc: this.state.rpc });
   }
 
   impersonate() {
