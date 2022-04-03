@@ -81,7 +81,7 @@ export default function NavigationBar() {
       console.log(`Received ${data} from main process`);
       setStdout(data);
     });
-  });
+  },[]);
 
   return (
     <Box sx={{ flexGrow: 1 }}>
