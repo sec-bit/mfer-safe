@@ -76,6 +76,27 @@ function createWindow() {
   navigationView.webContents.executeJavaScript(
     "window.location.assign(window.location.href+'?page=navigationbar');0"
   );
+
+  // dappView.webContents.openDevTools();
+  // navigationView.webContents.openDevTools();
+  dappView.webContents.setWindowOpenHandler((details) => {
+    dappView.webContents.loadURL(details.url);
+    console.log("loadURL:", details.url);
+    return { action: "deny" };
+  });
+
+  dappView.webContents.on("dom-ready", () => {
+    mainWindow.setTitle(dappView.webContents.getTitle());
+    var currentURL = dappView.webContents.getURL();
+    console.log("current url:", currentURL);
+    navigationView.webContents.send("target", currentURL);
+  });
+  return { dappView, navigationView }
+}
+
+app.whenReady().then(() => {
+  var { dappView, navigationView } = createWindow();
+
   ipcMain.handle("navigation", (event, args) => {
     console.log(args);
     switch (args.action) {
@@ -95,10 +116,14 @@ function createWindow() {
         break;
       case "refresh":
         dappView.webContents.reload();
+        break
+      case "clearStorage":
+        session.defaultSession.clearStorageData();
+        break
     }
   });
 
-  function spawnApeNode(rpc, account) {
+  function spawnApeNode(rpc, account, navigationView) {
     navigationView.webContents.send("stdout", "Reving up the node...");
     var child = spawn(apeNodePath, ["-upstream", rpc, "-account", account]);
     child.stdout.on("data", (data) => {
@@ -109,38 +134,24 @@ function createWindow() {
       }
     });
     child.stderr.on("data", (data) => {
-      // console.log(`stderr: ${data}`);
-      // navigationView.webContents.send("stdout", `${data}`);
+      var out = `${data}`;
+      if (out.indexOf("batch req") >= 0) {
+        navigationView.webContents.send("stdout", `${data}`);
+      }
     });
     return child;
   }
 
-  var child = spawnApeNode(upstreamRPC, impersonatedAccount);
+
+
+  var child = spawnApeNode(upstreamRPC, impersonatedAccount, navigationView);
 
   ipcMain.on("settings", (event, args) => {
     if (args.setrpc != undefined && args.setrpc != "") {
       child.kill();
-      child = spawnApeNode(args.setrpc, impersonatedAccount);
+      child = spawnApeNode(args.setrpc, impersonatedAccount, navigationView);
     }
   });
-
-  // dappView.webContents.openDevTools();
-  // navigationView.webContents.openDevTools();
-  dappView.webContents.setWindowOpenHandler((details) => {
-    dappView.webContents.loadURL(details.url);
-    console.log("loadURL:", details.url);
-    return { action: "deny" };
-  });
-
-  dappView.webContents.on("dom-ready", () => {
-    mainWindow.setTitle(dappView.webContents.getTitle());
-    var currentURL = dappView.webContents.getURL();
-    console.log("current url:", currentURL);
-    navigationView.webContents.send("target", currentURL);
-  });
-}
-
-app.whenReady().then(() => {
   ipcMain.handle("eth:fetch", (event, args) => {
     var ret = fetch(apesafer_server, args);
     var result = ret.then((res) => res.json()).then((data) => data.result);
@@ -208,13 +219,14 @@ app.whenReady().then(() => {
       }
     }
   );
-  session.defaultSession.setProxy({ proxyRules: "socks5://127.0.0.1:7890" });
-  createWindow();
+  session.defaultSession.setProxy({ mode: 'system' });
 
   app.on("activate", function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
   });
 });
 
