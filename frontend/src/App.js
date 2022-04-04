@@ -19,7 +19,7 @@ function App() {
     const searchParams = new URLSearchParams(window.location.search);
     const viewpath = searchParams.get("page");
     setPath(viewpath ? viewpath : "home");
-  });
+  }, []);
   let page = null;
   switch (path) {
     case "home":
@@ -43,6 +43,8 @@ function App() {
           <NavigationBar />
         </React.StrictMode>
       );
+    default:
+      page = <Home />;
   }
   return (
     <React.StrictMode>
