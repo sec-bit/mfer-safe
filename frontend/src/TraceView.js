@@ -38,7 +38,7 @@ function TraceView() {
           console.log(error);
         }
       );
-  }, []);
+  }, [txhash]);
 
   useEffect(() => {
     docall("debug_traceTransaction", [txhash])
@@ -57,7 +57,7 @@ function TraceView() {
           console.log(error);
         }
       );
-  }, []);
+  }, [txhash]);
 
   return (
     <div style={{ textAlign: "left" }}>
