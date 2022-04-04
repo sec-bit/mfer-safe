@@ -15,7 +15,7 @@ const filter = {
   urls: ["https://*/*", "http://*/*"],
 };
 
-var upstreamRPC = "ws://localhost:9546";
+var upstreamRPC = "ws://localhost:8546";
 var impersonatedAccount = "0x0000000000000000000000000000000000000000";
 const apeNodePath = path.join(app.getAppPath(), "bin", "ape-safer");
 const spawn = require("child_process").spawn;
@@ -37,6 +37,10 @@ function createWindow() {
   subWindow.loadFile(path.join(__dirname, "frontend", "index.html"));
   mainWindow.show();
 
+  return mainWindow;
+}
+
+function createView(mainWindow) {
   const navigationView = new BrowserView({
     webPreferences: {
       preload: path.join(app.getAppPath(), "navigationbar-preload.js"),
@@ -94,9 +98,7 @@ function createWindow() {
   return { dappView, navigationView }
 }
 
-app.whenReady().then(() => {
-  var { dappView, navigationView } = createWindow();
-
+function handleNavigationAction(dappView){
   ipcMain.handle("navigation", (event, args) => {
     console.log(args);
     switch (args.action) {
@@ -122,42 +124,29 @@ app.whenReady().then(() => {
         break
     }
   });
+}
 
-  function spawnApeNode(rpc, account, navigationView) {
-    navigationView.webContents.send("stdout", "Reving up the node...");
-    var child = spawn(apeNodePath, ["-upstream", rpc, "-account", account]);
-    child.stdout.on("data", (data) => {
-      // console.log(`stdout: ${data}`);
-      var out = `${data}`;
-      if (out.indexOf("[Update]") >= 0) {
-        navigationView.webContents.send("stdout", `${data}`);
-      }
-    });
-    child.stderr.on("data", (data) => {
-      var out = `${data}`;
-      if (out.indexOf("batch req") >= 0) {
-        navigationView.webContents.send("stdout", `${data}`);
-      }
-    });
-    return child;
-  }
-
-
-
-  var child = spawnApeNode(upstreamRPC, impersonatedAccount, navigationView);
-
-  ipcMain.on("settings", (event, args) => {
-    if (args.setrpc != undefined && args.setrpc != "") {
-      child.kill();
-      child = spawnApeNode(args.setrpc, impersonatedAccount, navigationView);
+function spawnApeNode(rpc, account, navigationView) {
+  navigationView.webContents.send("stdout", "Reving up the node...");
+  var child = spawn(apeNodePath, ["-upstream", rpc, "-account", account]);
+  child.stdout.on("data", (data) => {
+    console.log(`stdout: ${data}`);
+    var out = `${data}`;
+    if (out.indexOf("[Update]") >= 0) {
+      navigationView.webContents.send("stdout", `${data}`);
     }
   });
-  ipcMain.handle("eth:fetch", (event, args) => {
-    var ret = fetch(apesafer_server, args);
-    var result = ret.then((res) => res.json()).then((data) => data.result);
-    return result;
+  child.stderr.on("data", (data) => {
+    var out = `${data}`;
+    console.log(`stdout: ${data}`);
+    if (out.indexOf("batch req") >= 0) {
+      navigationView.webContents.send("stdout", `${data}`);
+    }
   });
+  return child;
+}
 
+function prepareNetwork(ape_node_rpc){
   session.defaultSession.webRequest.onHeadersReceived(
     filter,
     (details, callback) => {
@@ -182,22 +171,22 @@ app.whenReady().then(() => {
         return callback({});
       }
       if (needRedir[details.url]) {
-        console.log("redir:", details.url, "to:", apesafer_server);
+        console.log("redir:", details.url, "to:", ape_node_rpc);
         // var ret = details.uploadData[0].bytes.toString("utf8");
         // console.log(ret);
-        return callback({ redirectURL: apesafer_server });
+        return callback({ redirectURL: ape_node_rpc });
       }
 
       if (
         needExclude[details.url] ||
-        details.url.indexOf(apesafer_server) >= 0
+        details.url.indexOf(ape_node_rpc) >= 0
       ) {
         // console.log("excluded:", details.url);
         needExclude[details.url] = true;
         return callback({});
       }
 
-      if (details.url !== apesafer_server) {
+      if (details.url !== ape_node_rpc) {
         try {
           // console.log(details.uploadData[0].bytes);
           var ret = details.uploadData[0].bytes.toString("utf8");
@@ -207,9 +196,9 @@ app.whenReady().then(() => {
             : JSON.parse(ret)[0].method;
 
           if (method.indexOf("eth_") == 0) {
-            console.log("redir: ", details.url, " to: ", apesafer_server);
+            console.log("redir: ", details.url, " to: ", ape_node_rpc);
             needRedir[details.url] = true;
-            return callback({ redirectURL: apesafer_server });
+            return callback({ redirectURL: ape_node_rpc });
           }
         } catch (e) {
           needExclude[details.url] = true;
@@ -220,12 +209,35 @@ app.whenReady().then(() => {
     }
   );
   session.defaultSession.setProxy({ mode: 'system' });
+}
+var globalView = {}
+app.whenReady().then(() => {
+  var mainWindow = createWindow();
+  var { dappView, navigationView } = createView(mainWindow);
+  handleNavigationAction(dappView)
+  var child = spawnApeNode(upstreamRPC, impersonatedAccount, navigationView);
+
+  ipcMain.on("settings", (event, args) => {
+    if (args.setrpc != undefined && args.setrpc != "") {
+      child.kill();
+      child = spawnApeNode(args.setrpc, impersonatedAccount, navigationView);
+    }
+  });
+  ipcMain.handle("eth:fetch", (event, args) => {
+    var ret = fetch(apesafer_server, args);
+    var result = ret.then((res) => res.json()).then((data) => data.result);
+    return result;
+  });
+
+  prepareNetwork(apesafer_server)
 
   app.on("activate", function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      var mainWindow = createWindow();
+      mainWindow.addBrowserView(navigationView);
+      mainWindow.addBrowserView(dappView);
     }
   });
 });
