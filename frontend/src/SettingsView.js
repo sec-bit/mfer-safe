@@ -1,6 +1,5 @@
-/*global chrome*/
-import React from "react";
-import Button from "@material-ui/core/Button";
+import { React, useState, useCallback } from "react";
+// import Button from "@material-ui/core/Button";
 import Box from "@mui/material/Box";
 import TextField from "@mui/material/TextField";
 import { docall } from "./utils.js";
@@ -9,124 +8,135 @@ import FaceRetouchingNaturalIcon from "@mui/icons-material/FaceRetouchingNatural
 import PrintIcon from "@mui/icons-material/Print";
 import InputAdornment from "@mui/material/InputAdornment";
 import IconButton from "@mui/material/IconButton";
+import LanIcon from '@mui/icons-material/Lan';
 
-class SettingsView extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      rpc: "ws://127.0.0.1:9546",
-    };
+export default function SettingsView() {
+  const [web3Rpc, setWeb3RPC] = useState("ws://127.0.0.1:8546")
+  const [listenHostPort, setListenHostPort] = useState("127.0.0.1:10545")
+  const [faucetReceiver, setFaucetReceiver] = useState("")
+  const [impersonatedAccount, setImpersonatedAccount] = useState("0x0000000000000000000000000000000000000000")
 
-    this.handleRPCChange = this.handleRPCChange.bind(this);
-    this.handleAccountChange = this.handleAccountChange.bind(this);
-    this.handleFaucetReceiverChange =
-      this.handleFaucetReceiverChange.bind(this);
-  }
+  const saveRPCSettings = useCallback(() => {
+    window.api.send("settings", {
+      setweb3rpc: web3Rpc,
+      setlistenhostport: listenHostPort
+    });
+  }, [web3Rpc,listenHostPort]);
 
-  save() {
-    console.log("save state:", this.state.rpc);
-    window.api.send("settings", { setrpc: this.state.rpc });
-  }
+  const impersonate = useCallback(() => {
+    docall("ape_impersonate", [impersonatedAccount]);
+  }, [impersonatedAccount]);
 
-  impersonate() {
-    docall("ape_impersonate", [this.state.impersonatedAccount]);
-  }
+  const printMoney = useCallback(() => {
+    docall("ape_printMoney", [faucetReceiver]);
+  }, [faucetReceiver])
 
-  printMoney() {
-    docall("ape_printMoney", [this.state.faucetReceiver]);
-  }
+  // handleRPCChange(event) {
+  //   console.log("event:", event);
+  //   this.setState({ rpc: event.target.value });
+  // }
 
-  handleRPCChange(event) {
-    console.log("event:", event);
-    this.setState({ rpc: event.target.value });
-  }
+  // handleAccountChange(event) {
+  //   console.log("event:", event);
+  //   this.setState({ impersonatedAccount: event.target.value });
+  // }
 
-  handleAccountChange(event) {
-    console.log("event:", event);
-    this.setState({ impersonatedAccount: event.target.value });
-  }
+  // handleFaucetReceiverChange(event) {
+  //   console.log("event:", event);
+  //   this.setState({ faucetReceiver: event.target.value });
+  // }
 
-  handleFaucetReceiverChange(event) {
-    console.log("event:", event);
-    this.setState({ faucetReceiver: event.target.value });
-  }
-
-  render() {
-    return (
-      <div className="calldata-text">
-        <Box
-          component="form"
-          sx={{
-            "& .MuiTextField-root": { m: 1, width: "400px" },
-          }}
-          noValidate
-          autoComplete="on"
-        >
-          <div>
-            <TextField
-              value={this.state.impersonatedAccount}
-              onChange={this.handleAccountChange}
-              label="Impersonated Account"
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      edge="end"
-                      color="primary"
-                      onClick={() => this.impersonate()}
-                    >
-                      <FaceRetouchingNaturalIcon />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </div>
-          <div>
-            <TextField
-              value={this.state.faucetReceiver}
-              onChange={this.handleFaucetReceiverChange}
-              label="Void Ether"
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      edge="end"
-                      color="primary"
-                      onClick={() => this.printMoney()}
-                    >
-                      <PrintIcon />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-          </div>
-          <div>
-            <TextField
-              value={this.state.rpc}
-              onChange={this.handleRPCChange}
-              label="ApeSafer RPC"
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      edge="end"
-                      color="primary"
-                      onClick={() => this.save()}
-                    >
-                      <SaveIcon />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            {/* <Button onClick={() => this.save()}>💾Save</Button> */}
-          </div>
-        </Box>
-      </div>
-    );
-  }
+  return (
+    <div className="calldata-text">
+      <Box
+        component="form"
+        sx={{
+          "& .MuiTextField-root": { m: 1, width: "400px" },
+        }}
+        noValidate
+        autoComplete="on"
+      >
+        <div>
+          <TextField
+            value={impersonatedAccount}
+            onChange={e => setImpersonatedAccount(e.target.value)}
+            label="Impersonated Account"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    edge="end"
+                    color="primary"
+                    onClick={() => impersonate()}
+                  >
+                    <FaceRetouchingNaturalIcon />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </div>
+        <div>
+          <TextField
+            value={faucetReceiver}
+            onChange={e => setFaucetReceiver(e.target.value)}
+            label="Void Ether"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    edge="end"
+                    color="primary"
+                    onClick={() => printMoney()}
+                  >
+                    <PrintIcon />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </div>
+        <div>
+          <TextField
+            value={web3Rpc}
+            onChange={e => setWeb3RPC(e.target.value)}
+            label="Upstream Web3 RPC"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    edge="end"
+                    color="primary"
+                    onClick={() => saveRPCSettings()}
+                  >
+                    <SaveIcon />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </div>
+        <div>
+          <TextField
+            value={listenHostPort}
+            onChange={e => setListenHostPort(e.target.value)}
+            label="ApeSafer Listen"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    edge="end"
+                    color="primary"
+                    onClick={() => saveRPCSettings()}
+                  >
+                    <LanIcon />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+        </div>
+      </Box>
+    </div>
+  );
 }
-
-export default SettingsView;
