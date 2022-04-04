@@ -1,6 +1,6 @@
 import * as React from "react";
 import Box from "@mui/material/Box";
-import List from "@mui/material/List";
+// import List from "@mui/material/List";
 import TextField from "@mui/material/TextField";
 
 import ListItem from "@mui/material/ListItem";
@@ -63,7 +63,7 @@ export default function DebugView() {
           console.log(error);
         }
       );
-  }, []);
+  }, [traceID,txhash]);
   return (
     <Box
       sx={{
