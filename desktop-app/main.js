@@ -17,6 +17,7 @@ const filter = {
 
 var upstreamRPC = "ws://localhost:8546";
 var impersonatedAccount = "0x0000000000000000000000000000000000000000";
+var listen = "127.0.0.1:10545";
 const apeNodePath = path.join(app.getAppPath(), "bin", "ape-safer");
 const spawn = require("child_process").spawn;
 
@@ -98,7 +99,7 @@ function createView(mainWindow) {
   return { dappView, navigationView }
 }
 
-function handleNavigationAction(dappView){
+function handleNavigationAction(dappView) {
   ipcMain.handle("navigation", (event, args) => {
     console.log(args);
     switch (args.action) {
@@ -126,9 +127,9 @@ function handleNavigationAction(dappView){
   });
 }
 
-function spawnApeNode(rpc, account, navigationView) {
+function spawnApeNode(account, rpc, listen, navigationView) {
   navigationView.webContents.send("stdout", "Reving up the node...");
-  var child = spawn(apeNodePath, ["-upstream", rpc, "-account", account]);
+  var child = spawn(apeNodePath, ["-account", account, "-upstream", rpc, "-listen", listen]);
   child.stdout.on("data", (data) => {
     console.log(`stdout: ${data}`);
     var out = `${data}`;
@@ -146,7 +147,7 @@ function spawnApeNode(rpc, account, navigationView) {
   return child;
 }
 
-function prepareNetwork(ape_node_rpc){
+function prepareNetwork(ape_node_rpc) {
   session.defaultSession.webRequest.onHeadersReceived(
     filter,
     (details, callback) => {
@@ -215,12 +216,12 @@ app.whenReady().then(() => {
   var mainWindow = createWindow();
   var { dappView, navigationView } = createView(mainWindow);
   handleNavigationAction(dappView)
-  var child = spawnApeNode(upstreamRPC, impersonatedAccount, navigationView);
+  var child = spawnApeNode(impersonatedAccount, upstreamRPC, listen, navigationView);
 
   ipcMain.on("settings", (event, args) => {
     if (args.setrpc != undefined && args.setrpc != "") {
       child.kill();
-      child = spawnApeNode(args.setrpc, impersonatedAccount, navigationView);
+      child = spawnApeNode(impersonatedAccount, args.setweb3rpc, args.setlistenhostport, navigationView);
     }
   });
   ipcMain.handle("eth:fetch", (event, args) => {
