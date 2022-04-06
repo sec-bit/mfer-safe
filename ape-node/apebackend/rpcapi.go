@@ -178,7 +178,9 @@ func (s *ApeAPI) SendTransaction(ctx context.Context, args TransactionArgs) (com
 	if args.Gas == nil {
 		gas, err := s.EstimateGas(ctx, args, nil)
 		if err != nil {
-			return common.Hash{}, err
+			// return common.Hash{}, err
+			log.Printf("estimate gas failed: %v, use 0xffffff", err)
+			gas = hexutil.Uint64(0xffffff)
 		}
 		args.Gas = &gas
 	}
