@@ -24,10 +24,10 @@ class EIP1193Provider {
       args.params = [];
     }
 
-    const id = this.id++;
+    this.id = this.id + 1;
     const body = {
       jsonrpc: "2.0",
-      id: id,
+      id: this.id,
       method: args.method,
       //https://github.com/aklinkert/js-json-rpc-client/blob/master/src/index.js
       params: Array.isArray(args.params) ? args.params : [args.params],
