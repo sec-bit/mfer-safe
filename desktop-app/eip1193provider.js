@@ -69,6 +69,8 @@ class EIP1193Provider {
 
   chainId = "0x00";
 
+  selectedAddress = "0x0000000000000000000000000000000000000000";
+
   constructor() {
     this.id = 0;
     this.request({ method: "eth_chainId", params: [] }).then((response) => {
@@ -76,6 +78,12 @@ class EIP1193Provider {
       this.chainId = response;
       this.netVersion = parseInt(response).toString();
     });
+    this.request({ method: "eth_requestAccounts", params: [] }).then(
+      (response) => {
+        console.log("default address", response);
+        this.selectedAddress = response[0];
+      }
+    );
   }
 }
 
