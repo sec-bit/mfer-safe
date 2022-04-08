@@ -110,16 +110,23 @@ func NewOverlayState(ctx context.Context, ec *rpc.Client, bn int64) *OverlayStat
 
 func (s *OverlayState) Derive(reason string) *OverlayState {
 	// log.Printf("derive from: %s, depth: %d", reason, s.deriveCnt+1)
-	return &OverlayState{
-		parent:     s,
-		scratchPad: make(map[string][]byte),
-		txLogs:     make(map[common.Hash][]*types.Log),
-		logs:       make([]*types.Log, 0),
-		receipts:   make(map[common.Hash]*types.Receipt),
-		deriveCnt:  s.deriveCnt + 1,
+	state := &OverlayState{
+		parent:           s,
+		scratchPad:       make(map[string][]byte),
+		txLogs:           make(map[common.Hash][]*types.Log),
+		logs:             make([]*types.Log, len(s.logs)),
+		receipts:         make(map[common.Hash]*types.Receipt),
+		deriveCnt:        s.deriveCnt + 1,
+		currentTxHash:    s.currentTxHash,
+		currentBlockHash: s.currentBlockHash,
 
 		stateID: rand.Uint64(),
 	}
+	copy(state.logs, s.logs)
+	for k, v := range s.receipts {
+		state.receipts[k] = v
+	}
+	return state
 }
 
 func (s *OverlayState) Pop() *OverlayState {
