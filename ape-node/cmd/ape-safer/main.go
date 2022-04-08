@@ -48,7 +48,7 @@ func main() {
 	txPool := apetxpool.NewApeTxPool()
 	b := apebackend.NewApeBackend(apeEVM, txPool, impersonatedAccount)
 
-	stack.RegisterAPIs(apebackend.GetApeAPIs(b))
+	stack.RegisterAPIs(apebackend.GetEthAPIs(b))
 	if err := stack.Start(); err != nil {
 		log.Panic(err)
 	}

@@ -16,12 +16,12 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-func GetApeAPIs(b *ApeBackend) []rpc.API {
+func GetEthAPIs(b *ApeBackend) []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   &ApeAPI{b},
+			Service:   &EthAPI{b},
 			Public:    true,
 		},
 		{
@@ -57,7 +57,7 @@ func GetApeAPIs(b *ApeBackend) []rpc.API {
 	}
 }
 
-type ApeAPI struct {
+type EthAPI struct {
 	b *ApeBackend
 }
 
@@ -81,15 +81,15 @@ func (s *AuxAPI) SwitchEthereumChain(args ChainIDArgs) {
 	// s.b.EVM.ChainID()
 }
 
-func (s *ApeAPI) Accounts() []common.Address {
+func (s *EthAPI) Accounts() []common.Address {
 	return s.b.Accounts()
 }
 
-func (s *ApeAPI) RequestAccounts() []common.Address {
+func (s *EthAPI) RequestAccounts() []common.Address {
 	return s.b.Accounts()
 }
 
-func (s *ApeAPI) Call(ctx context.Context, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Bytes, error) {
+func (s *EthAPI) Call(ctx context.Context, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Bytes, error) {
 	msg, err := args.ToMessage(0, nil)
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func (s *ApeAPI) Call(ctx context.Context, args TransactionArgs, blockNrOrHash r
 	return result.Return(), result.Err
 }
 
-func (s *ApeAPI) EstimateGas(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash) (hexutil.Uint64, error) {
+func (s *EthAPI) EstimateGas(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash) (hexutil.Uint64, error) {
 	var from *common.Address
 	if args.From != nil {
 		from = args.From
@@ -144,7 +144,7 @@ func (s *ApeAPI) EstimateGas(ctx context.Context, args TransactionArgs, blockNrO
 	return hexutil.Uint64(result.UsedGas * 2), nil
 }
 
-func (s *ApeAPI) GetBalance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Big, error) {
+func (s *EthAPI) GetBalance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Big, error) {
 	state := s.b.EVM.StateDB
 
 	if state == nil {
@@ -153,7 +153,7 @@ func (s *ApeAPI) GetBalance(ctx context.Context, address common.Address, blockNr
 	return (*hexutil.Big)(state.GetBalance(address)), nil
 }
 
-func (s *ApeAPI) GetCode(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (hexutil.Bytes, error) {
+func (s *EthAPI) GetCode(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (hexutil.Bytes, error) {
 	state := s.b.EVM.StateDB
 	if state == nil {
 		return nil, fmt.Errorf("ape state not found")
@@ -161,7 +161,7 @@ func (s *ApeAPI) GetCode(ctx context.Context, address common.Address, blockNrOrH
 	return (hexutil.Bytes)(state.GetCode(address)), nil
 }
 
-func (s *ApeAPI) SendTransaction(ctx context.Context, args TransactionArgs) (common.Hash, error) {
+func (s *EthAPI) SendTransaction(ctx context.Context, args TransactionArgs) (common.Hash, error) {
 	var from *common.Address
 	if args.From != nil && (*args.From).String() != (common.Address{}).String() {
 		from = args.From
@@ -201,7 +201,7 @@ func (s *ApeAPI) SendTransaction(ctx context.Context, args TransactionArgs) (com
 	return tx.Hash(), nil
 }
 
-func (s *ApeAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (common.Hash, error) {
+func (s *EthAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (common.Hash, error) {
 	tx := new(types.Transaction)
 	if err := tx.UnmarshalBinary(input); err != nil {
 		return common.Hash{}, err
@@ -216,7 +216,7 @@ var (
 	blockHash = crypto.Keccak256Hash([]byte("fake block hash"))
 )
 
-func (s *ApeAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
+func (s *EthAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
 	// Try to return an already finalized transaction
 	index, tx := s.b.TxPool.GetTransactionByHash(hash)
 	if tx == nil {
@@ -233,7 +233,7 @@ func (s *ApeAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*R
 	return nil, nil
 }
 
-func (s *ApeAPI) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]interface{}, error) {
+func (s *EthAPI) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bool) (map[string]interface{}, error) {
 	block, err := s.b.EVM.Conn.BlockByHash(ctx, hash)
 	if block != nil && err == nil {
 		return RPCMarshalBlock(block, true, fullTx)
@@ -247,7 +247,7 @@ func (s *ApeAPI) GetBlockByHash(ctx context.Context, hash common.Hash, fullTx bo
 	}
 }
 
-func (s *ApeAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
+func (s *EthAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, fullTx bool) (map[string]interface{}, error) {
 	var response map[string]interface{}
 	switch number {
 	case rpc.LatestBlockNumber:
@@ -296,17 +296,17 @@ func (s *ApeAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, f
 	// return ret, nil
 }
 
-func (s *ApeAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
+func (s *EthAPI) GasPrice(ctx context.Context) (*hexutil.Big, error) {
 	tipcap := big.NewInt(5e9)
 	return (*hexutil.Big)(tipcap), nil
 }
 
-func (s *ApeAPI) GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Uint64, error) {
+func (s *EthAPI) GetTransactionCount(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*hexutil.Uint64, error) {
 	nonce := s.b.EVM.StateDB.GetNonce(address)
 	return (*hexutil.Uint64)(&nonce), nil
 }
 
-func (s *ApeAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
+func (s *EthAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
 	spew.Dump(ctx)
 	index, tx := s.b.TxPool.GetTransactionByHash(hash)
 	if tx == nil {
@@ -353,11 +353,11 @@ func (s *ApeAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (m
 	return fields, nil
 }
 
-func (s *ApeAPI) ChainId() (*hexutil.Big, error) {
+func (s *EthAPI) ChainId() (*hexutil.Big, error) {
 	return (*hexutil.Big)(s.b.EVM.ChainID()), nil
 }
 
-func (s *ApeAPI) BlockNumber() hexutil.Uint64 {
+func (s *EthAPI) BlockNumber() hexutil.Uint64 {
 	bn, err := s.b.EVM.Conn.BlockNumber(context.TODO())
 	if err != nil {
 		return hexutil.Uint64(0)
