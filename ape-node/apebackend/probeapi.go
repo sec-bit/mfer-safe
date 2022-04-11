@@ -106,5 +106,4 @@ func (p *ProbeAPI) RunTxWithDifferentContext(ctx context.Context, txHash common.
 	traces["ops0"] = ops0
 	traces["ops1"] = ops1
 	return traces, nil
-	return result, nil
 }
