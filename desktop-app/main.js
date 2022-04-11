@@ -68,7 +68,7 @@ function createView(mainWindow) {
   mainWindow.addBrowserView(dappView);
 
   const navigationBarWidth = 64;
-  var resize = () => {
+  var resize = (offset) => () => {
     navigationView.setBounds({
       x: 0,
       y: 0,
@@ -79,11 +79,12 @@ function createView(mainWindow) {
       x: 0,
       y: navigationBarWidth,
       width: mainWindow.getBounds().width,
-      height: mainWindow.getBounds().height - navigationBarWidth - 55,
+      height: mainWindow.getBounds().height - navigationBarWidth - offset,
     });
   };
-  mainWindow.on("resize", resize);
-  mainWindow.once("ready-to-show", resize);
+  mainWindow.on("resize", resize(55));
+  mainWindow.on("enter-full-screen", resize(0));
+  mainWindow.once("ready-to-show", resize(55));
 
   navigationView.webContents.loadFile(
     path.join(__dirname, "frontend", "index.html")
