@@ -58,6 +58,7 @@ type OverlayState struct {
 	lastBN          int64
 	scratchPadMutex *sync.RWMutex
 	scratchPad      map[string][]byte
+	cacheFilePath   string
 
 	accessedAccountsMutex *sync.RWMutex
 	accessedAccounts      map[common.Address]bool
@@ -80,6 +81,17 @@ type OverlayState struct {
 }
 
 func NewOverlayState(ctx context.Context, ec *rpc.Client, bn int64) *OverlayState {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		log.Panic(err)
+	}
+	cacheDir = path.Join(cacheDir, "ApeSafer")
+	err = os.MkdirAll(cacheDir, os.ModePerm)
+	if err != nil {
+		log.Panic(err)
+	}
+	fileName := "scratchPadKeyCache.txt"
+
 	state := &OverlayState{
 		ctx:             ctx,
 		ec:              ec,
@@ -88,6 +100,7 @@ func NewOverlayState(ctx context.Context, ec *rpc.Client, bn int64) *OverlayStat
 		bn:              bn,
 		scratchPadMutex: &sync.RWMutex{},
 		scratchPad:      make(map[string][]byte),
+		cacheFilePath:   path.Join(cacheDir, fileName),
 
 		accessedAccountsMutex: &sync.RWMutex{},
 		accessedAccounts:      make(map[common.Address]bool),
@@ -464,25 +477,13 @@ func (s *OverlayState) resetScratchPad(bn int64) {
 	s.scratchPadMutex.Lock()
 	s.bn = bn
 	log.Printf("[reset scratchpad] lock scratchPad")
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		log.Panic(err)
-	}
-	cacheDir = path.Join(cacheDir, "xyz.donttrustverify.apesafer")
-	err = os.MkdirAll(cacheDir, os.ModePerm)
-	if err != nil {
-		log.Panic(err)
-	}
 
-	fileName := "scratchPadKeyCache.txt"
-	cacheFilePath := path.Join(cacheDir, fileName)
-
-	f, err := os.OpenFile(cacheFilePath, os.O_RDWR|os.O_CREATE, 0666)
+	f, err := os.OpenFile(s.cacheFilePath, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		log.Panicf("openfile error: %v", err)
 	}
 	defer f.Close()
-	fmt.Printf("cache saved @ %s\n", cacheFilePath)
+	fmt.Printf("cache saved @ %s\n", s.cacheFilePath)
 
 	log.Printf("[reset scratchpad] load cached scratchPad key")
 	scanner := bufio.NewScanner(f)
