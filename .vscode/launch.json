@@ -9,7 +9,7 @@
             "program": "${file}",
             "args": [
                 "-upstream=ws://localhost:9546",
-                "-account=0x3A8C500843Bf792ebbb11E246af599a2806b796E",
+                "-account=0x0000000000000000000000000000000000000000",
                 // "-listen=0.0.0.0:10545"
             ],
         }
