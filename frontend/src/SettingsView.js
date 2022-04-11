@@ -19,17 +19,18 @@ export default function SettingsView() {
   );
 
   useEffect(() => {
+    if (window.api != undefined) {
+      window.api.getSettings().then((settings) => {
+        setWeb3RPC(settings.upstream_rpc);
+        setListenHostPort(settings.listen);
+        setImpersonatedAccount(settings.impersonated_account);
+      });
+    }
     docall("eth_requestAccounts", [])
       .then((res) => res.json())
       .then((result) => {
         setImpersonatedAccount(result.result[0]);
       });
-    if (window.api != undefined) {
-      window.api.getSettings().then((settings) => {
-        setWeb3RPC(settings.upstream_rpc);
-        setListenHostPort(settings.listen);
-      });
-    }
   }, []);
 
   const saveRPCSettings = useCallback(() => {
@@ -38,7 +39,7 @@ export default function SettingsView() {
       setlistenhostport: listenHostPort,
       impersonatedAccount: impersonatedAccount,
     });
-  }, [web3Rpc, listenHostPort]);
+  }, [web3Rpc, listenHostPort, impersonatedAccount]);
 
   const impersonate = useCallback(() => {
     docall("ape_impersonate", [impersonatedAccount]);
