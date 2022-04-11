@@ -7,6 +7,7 @@ const {
   session,
 } = require("electron");
 const fetch = require("node-fetch");
+const Store = require("electron-store");
 
 const path = require("path");
 const needRedir = {};
@@ -15,13 +16,21 @@ const filter = {
   urls: ["https://*/*", "http://*/*"],
 };
 
-var upstreamRPC = "ws://localhost:8546";
-var impersonatedAccount = "0x0000000000000000000000000000000000000000";
-var listen = "127.0.0.1:10545";
 const apeNodePath = path.join(app.getAppPath(), "bin", "ape-safer");
 const spawn = require("child_process").spawn;
 
-const apesafer_server = "http://127.0.0.1:10545";
+const store = new Store();
+
+var upstream_rpc = store.get("settings.upstream_rpc", "ws://localhost:8546");
+var apesafer_server = store.get(
+  "settings.apesafer_server",
+  "http://127.0.0.1:10545"
+);
+var impersonated_account = store.get(
+  "settings.impersonated_account",
+  "0x0000000000000000000000000000000000000000"
+);
+var listen = store.get("settings.listen", "127.0.0.1:10545");
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -37,6 +46,7 @@ function createWindow() {
   mainWindow.addTabbedWindow(subWindow);
   subWindow.loadFile(path.join(__dirname, "frontend", "index.html"));
   mainWindow.show();
+  // subWindow.webContents.openDevTools();
 
   return mainWindow;
 }
@@ -221,14 +231,14 @@ function prepareNetwork(ape_node_rpc) {
   );
   session.defaultSession.setProxy({ mode: "system" });
 }
-var globalView = {};
+
 app.whenReady().then(() => {
   var mainWindow = createWindow();
   var { dappView, navigationView } = createView(mainWindow);
   handleNavigationAction(dappView);
   var child = spawnApeNode(
-    impersonatedAccount,
-    upstreamRPC,
+    impersonated_account,
+    upstream_rpc,
     listen,
     navigationView
   );
@@ -237,12 +247,23 @@ app.whenReady().then(() => {
     if (args.setweb3rpc != undefined && args.setweb3rpc != "") {
       child.kill();
       child = spawnApeNode(
-        impersonatedAccount,
+        args.impersonatedAccount,
         args.setweb3rpc,
         args.setlistenhostport,
         navigationView
       );
+      store.set({
+        settings: {
+          upstream_rpc: args.setweb3rpc,
+          apesafer_server: "http://" + args.setlistenhostport,
+          impersonated_account: args.impersonatedAccount,
+          listen: args.setlistenhostport,
+        },
+      });
     }
+  });
+  ipcMain.handle("settings", (event, args) => {
+    return store.get("settings");
   });
   ipcMain.handle("eth:fetch", (event, args) => {
     var ret = fetch(apesafer_server, args);
