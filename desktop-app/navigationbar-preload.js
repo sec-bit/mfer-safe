@@ -22,4 +22,5 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.on(channel, (event, ...args) => func(...args));
     }
   },
+  getSettings: () => ipcRenderer.invoke("settings"),
 });

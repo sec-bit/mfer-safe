@@ -28,6 +28,7 @@
   },
   "dependencies": {
     "electron-squirrel-startup": "^1.0.0",
+    "electron-store": "^8.0.1",
     "electron-tabs": "^0.17.0",
     "eth-provider": "^0.10.0",
     "node-fetch": "^2.6.7"
