@@ -307,7 +307,7 @@ func (s *EthAPI) GetTransactionCount(ctx context.Context, address common.Address
 }
 
 func (s *EthAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
-	spew.Dump(ctx)
+	// spew.Dump(ctx)
 	index, tx := s.b.TxPool.GetTransactionByHash(hash)
 	if tx == nil {
 		return nil, fmt.Errorf("tx: %s not found", hash.Hex())
