@@ -19,7 +19,7 @@ export default function SettingsView() {
   );
 
   useEffect(() => {
-    if (window.api != undefined) {
+    if (window.api !== undefined) {
       window.api.getSettings().then((settings) => {
         setWeb3RPC(settings.upstream_rpc);
         setListenHostPort(settings.listen);
