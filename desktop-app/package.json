@@ -27,6 +27,7 @@
     "electron": "^17.2.0"
   },
   "dependencies": {
+    "@electron-forge/maker-dmg": "^6.0.0-beta.63",
     "electron-squirrel-startup": "^1.0.0",
     "electron-store": "^8.0.1",
     "electron-tabs": "^0.17.0",
@@ -46,10 +47,10 @@
           }
         },
         {
-          "name": "@electron-forge/maker-zip",
-          "platforms": [
-            "darwin"
-          ]
+          "name": "@electron-forge/maker-dmg",
+          "config": {
+            "format": "ULFO"
+          }
         },
         {
           "name": "@electron-forge/maker-deb",
