@@ -42,16 +42,27 @@ function createWindow() {
       preload: path.join(app.getAppPath(), "navigationbar-preload.js"),
     },
   });
+  const abiCallerWindow = new BrowserWindow({
+    webPreferences: {
+      preload: path.join(app.getAppPath(), "preload.js"),
+    },
+  });
 
   mainWindow.addTabbedWindow(subWindow);
+  mainWindow.addTabbedWindow(abiCallerWindow);
+
   subWindow.loadFile(path.join(__dirname, "frontend", "index.html"));
+  abiCallerWindow.loadURL("https://lab.miguelmota.com/ethereum-abi-caller/");
+
   mainWindow.show();
   // subWindow.webContents.openDevTools();
 
   return mainWindow;
 }
 
-function setResize(mainWindow, navigationView, dappView) {
+function bindWindowAndViews(mainWindow, navigationView, dappView) {
+  mainWindow.addBrowserView(navigationView);
+  mainWindow.addBrowserView(dappView);
   const navigationBarWidth = 64;
   var resize = (offset) => () => {
     navigationView.setBounds({
@@ -72,7 +83,7 @@ function setResize(mainWindow, navigationView, dappView) {
   mainWindow.once("ready-to-show", resize(55));
 }
 
-function createView(mainWindow) {
+function createView() {
   const navigationView = new BrowserView({
     webPreferences: {
       preload: path.join(app.getAppPath(), "navigationbar-preload.js"),
@@ -85,9 +96,6 @@ function createView(mainWindow) {
       preload: path.join(app.getAppPath(), "preload.js"),
     },
   });
-  mainWindow.addBrowserView(navigationView);
-  mainWindow.addBrowserView(dappView);
-  setResize(mainWindow, navigationView, dappView);
   navigationView.webContents.loadFile(
     path.join(__dirname, "frontend", "index.html")
   );
@@ -104,7 +112,7 @@ function createView(mainWindow) {
   });
 
   dappView.webContents.on("dom-ready", () => {
-    mainWindow.setTitle(dappView.webContents.getTitle());
+    // mainWindow.setTitle(dappView.webContents.getTitle());
     var currentURL = dappView.webContents.getURL();
     console.log("current url:", currentURL);
     navigationView.webContents.send("target", currentURL);
@@ -238,6 +246,7 @@ function prepareNetwork(ape_node_rpc) {
 app.whenReady().then(() => {
   var mainWindow = createWindow();
   var { dappView, navigationView } = createView(mainWindow);
+  bindWindowAndViews(mainWindow, navigationView, dappView);
   handleNavigationAction(dappView);
   var child = spawnApeNode(
     impersonated_account,
@@ -281,9 +290,7 @@ app.whenReady().then(() => {
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) {
       var mainWindow = createWindow();
-      mainWindow.addBrowserView(navigationView);
-      mainWindow.addBrowserView(dappView);
-      setResize(mainWindow, navigationView, dappView);
+      bindWindowAndViews(mainWindow, navigationView, dappView);
     }
   });
 });
