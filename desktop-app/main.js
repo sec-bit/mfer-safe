@@ -51,22 +51,7 @@ function createWindow() {
   return mainWindow;
 }
 
-function createView(mainWindow) {
-  const navigationView = new BrowserView({
-    webPreferences: {
-      preload: path.join(app.getAppPath(), "navigationbar-preload.js"),
-    },
-  });
-
-  const dappView = new BrowserView({
-    webPreferences: {
-      // nodeIntegration: true,
-      preload: path.join(app.getAppPath(), "preload.js"),
-    },
-  });
-  mainWindow.addBrowserView(navigationView);
-  mainWindow.addBrowserView(dappView);
-
+function setResize(mainWindow, navigationView, dappView) {
   const navigationBarWidth = 64;
   var resize = (offset) => () => {
     navigationView.setBounds({
@@ -85,7 +70,24 @@ function createView(mainWindow) {
   mainWindow.on("resize", resize(55));
   mainWindow.on("enter-full-screen", resize(0));
   mainWindow.once("ready-to-show", resize(55));
+}
 
+function createView(mainWindow) {
+  const navigationView = new BrowserView({
+    webPreferences: {
+      preload: path.join(app.getAppPath(), "navigationbar-preload.js"),
+    },
+  });
+
+  const dappView = new BrowserView({
+    webPreferences: {
+      // nodeIntegration: true,
+      preload: path.join(app.getAppPath(), "preload.js"),
+    },
+  });
+  mainWindow.addBrowserView(navigationView);
+  mainWindow.addBrowserView(dappView);
+  setResize(mainWindow, navigationView, dappView);
   navigationView.webContents.loadFile(
     path.join(__dirname, "frontend", "index.html")
   );
@@ -281,6 +283,7 @@ app.whenReady().then(() => {
       var mainWindow = createWindow();
       mainWindow.addBrowserView(navigationView);
       mainWindow.addBrowserView(dappView);
+      setResize(mainWindow, navigationView, dappView);
     }
   });
 });
