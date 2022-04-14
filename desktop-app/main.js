@@ -75,11 +75,13 @@ function bindWindowAndViews(mainWindow, navigationView, dappView) {
       x: 0,
       y: navigationBarWidth,
       width: mainWindow.getBounds().width,
-      height: mainWindow.getBounds().height - navigationBarWidth - offset,
+      height:
+        mainWindow.getBounds().height -
+        navigationBarWidth -
+        (mainWindow.isFullScreen() ? offset - 55 : offset),
     });
   };
   mainWindow.on("resize", resize(55));
-  mainWindow.on("enter-full-screen", resize(0));
   mainWindow.once("ready-to-show", resize(55));
 }
 
