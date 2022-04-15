@@ -132,7 +132,7 @@ class SimulateView extends React.Component {
             <ReactJson
               src={this.state.calltrace || {}}
               displayDataTypes={false}
-              enableClipboard={false}
+              enableClipboard={true}
             />
           </div>
         </Box>
