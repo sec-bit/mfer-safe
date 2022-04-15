@@ -26,9 +26,6 @@ function Fieldset(props) {
 
 function AbiEventForm(props) {
   const event = props.event;
-  // const inputs = abiObj?.inputs || [];
-
-  console.log(event);
 
   return (
     <div>
@@ -48,6 +45,8 @@ function AbiEventForm(props) {
             })}
           </ol>
         </dd>
+        <dt>Data</dt>
+        <dd>{event.data}</dd>
       </dl>
     </div>
   );
