@@ -3,10 +3,59 @@ import { docall } from "./utils.js";
 import eventSignatures from "./eventSignatures.json";
 import TextField from "@mui/material/TextField";
 import ReactJson from "react-json-view";
+import "./TraceView.css";
+
+function Fieldset(props) {
+  const { legend, children } = props;
+  return (
+    <details open>
+      <summary>
+        <span className="open">
+          {legend} {"▾"}
+        </span>
+      </summary>
+      <fieldset>
+        <legend>
+          {legend} <span className="close">{"▴"}</span>
+        </legend>
+        {children}
+      </fieldset>
+    </details>
+  );
+}
+
+function AbiEventForm(props) {
+  const event = props.event;
+  // const inputs = abiObj?.inputs || [];
+
+  console.log(event);
+
+  return (
+    <div>
+      <dl>
+        <dt>Address</dt>
+        <dd>{event.address}</dd>
+        <dt>Name</dt>
+        <dd>{event.name}</dd>
+        <dt>Topics</dt>
+        <dd>
+          <ol start="0">
+            <li>
+              <strong>{event.topics[0]}</strong>
+            </li>
+            {event.topics.slice(1).map((topic) => {
+              return <li>{topic}</li>;
+            })}
+          </ol>
+        </dd>
+      </dl>
+    </div>
+  );
+}
 
 function TraceView() {
   const [callTrace, setCallTrace] = useState({});
-  const [events, setEvents] = useState();
+  const [events, setEvents] = useState([{ name: "x", topics: [] }]);
   // const [fullTrace, setFullTrace] = useState({});
   const searchParams = new URLSearchParams(window.location.search);
   const txhash = searchParams.get("txhash");
@@ -61,15 +110,15 @@ function TraceView() {
 
   return (
     <div style={{ textAlign: "left" }}>
+      <Fieldset legend="Event Logs">
+        {events.map((event) => {
+          return <AbiEventForm key={[event]} event={event} />;
+        })}
+      </Fieldset>
       <ReactJson
         src={callTrace}
         displayDataTypes={false}
-        enableClipboard={false}
-      />
-      <ReactJson
-        src={events}
-        displayDataTypes={false}
-        enableClipboard={false}
+        enableClipboard={true}
       />
     </div>
   );
