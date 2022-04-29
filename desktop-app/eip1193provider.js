@@ -65,6 +65,14 @@ class EIP1193Provider {
     console.log("on:", event, listener);
   }
 
+  removeListener(event, listener) {
+    console.log("removeListener:", event, listener);
+  }
+
+  removeAllListeners(args) {
+    console.log("removeAllListeners:", args);
+  }
+
   isMetaMask = true;
 
   chainId = "0x00";
