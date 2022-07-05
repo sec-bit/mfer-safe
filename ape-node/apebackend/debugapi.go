@@ -142,7 +142,7 @@ func (s *DebugAPI) TraceTransaction(ctx context.Context, txHash common.Hash, con
 
 	stateDB := s.b.EVM.StateDB.CloneFromRoot()
 	stateDB.InitFakeAccounts()
-	s.b.EVM.ExecuteTxs(txs, stateDB)
+	s.b.EVM.ExecuteTxs(txs, stateDB, nil)
 
 	s.b.EVM.SetTracer(tracer)
 	msg := s.b.EVM.TxToMessage(txToBeTraced)
@@ -232,7 +232,7 @@ func (s *DebugAPI) StorageRangeAt(ctx context.Context, blockHash common.Hash, tx
 	for _, tx := range txs {
 		msg := s.b.EVM.TxToMessage(tx)
 		s.b.EVM.DoCall(&msg, true, stateDB) //collect trace
-		s.b.EVM.ExecuteTxs(types.Transactions{tx}, stateDB)
+		s.b.EVM.ExecuteTxs(types.Transactions{tx}, stateDB, nil)
 	}
 
 	touchedState := tracer.GetResult()

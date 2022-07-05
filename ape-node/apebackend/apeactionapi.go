@@ -3,6 +3,7 @@ package apebackend
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"math/big"
 
@@ -13,7 +14,9 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type ApeActionAPI struct {
@@ -22,7 +25,7 @@ type ApeActionAPI struct {
 
 func (s *ApeActionAPI) resetState() {
 	s.b.EVM.ResetState()
-	s.b.EVM.Prepare()
+	s.b.EVM.Prepare(nil)
 }
 
 func (s *ApeActionAPI) ResetState() {
@@ -43,7 +46,7 @@ func (s *ApeActionAPI) ReExecTxPool() {
 	defer s.b.EVM.StateUnlock()
 	s.resetState()
 	txs, _ := s.b.TxPool.GetPoolTxs()
-	execResults := s.b.EVM.ExecuteTxs(txs, s.b.EVM.StateDB)
+	execResults := s.b.EVM.ExecuteTxs(txs, s.b.EVM.StateDB, nil)
 	s.b.TxPool.SetResults(execResults)
 }
 
@@ -82,6 +85,7 @@ type MultiSendData struct {
 	ExecResult          *core.ExecutionResult `json:"execResult"`
 	RevertError         string                `json:"revertError"`
 	CallError           error                 `json:"callError"`
+	EventLogs           []*types.Log          `json:"eventLogs"`
 	DebugTrace          json.RawMessage       `json:"debugTrace"`
 }
 
@@ -226,7 +230,7 @@ func (s *ApeActionAPI) SimulateSafeExec(ctx context.Context, safeOwners []common
 		if err != nil {
 			log.Panic(err)
 		}
-		s.b.EVM.ExecuteTxs(types.Transactions{tx}, simulationStateDB)
+		s.b.EVM.ExecuteTxs(types.Transactions{tx}, simulationStateDB, nil)
 	}
 	msg := types.NewMessage(
 		safeOwners[0],
@@ -248,7 +252,10 @@ func (s *ApeActionAPI) SimulateSafeExec(ctx context.Context, safeOwners []common
 	}
 
 	s.b.EVM.SetTracer(tracer)
+	txHash := crypto.Keccak256Hash([]byte("psuedoTransaction"))
+	simulationStateDB.StartLogCollection(txHash, crypto.Keccak256Hash([]byte("blockhash")))
 	result, err := s.b.EVM.DoCall(&msg, true, simulationStateDB)
+	simulationStateDB.FinishLogCollection()
 	spew.Dump(result, err)
 	msData.ExecResult = result
 	if err != nil {
@@ -264,7 +271,101 @@ func (s *ApeActionAPI) SimulateSafeExec(ctx context.Context, safeOwners []common
 		return nil, err
 	}
 	msData.DebugTrace = traceResult
+	msData.EventLogs = simulationStateDB.GetLogs(txHash)
 
 	return msData, nil
 
+}
+
+type txTraceResult struct {
+	Result interface{} `json:"result,omitempty"` // Trace results produced by the tracer
+	Error  string      `json:"error,omitempty"`  // Trace failure produced by the tracer
+}
+
+func (s *ApeActionAPI) traceBlocks(ctx context.Context, blocks []*types.Block, config *tracers.TraceConfig) ([][]*txTraceResult, error) {
+	if len(blocks) == 0 {
+		return nil, errors.New("no blocks supplied")
+	}
+	txTraceResults := make([][]*txTraceResult, len(blocks))
+
+	spew.Dump(config)
+
+	allTxs := make([]*types.Transaction, 0)
+	for _, blk := range blocks {
+		allTxs = append(allTxs, blk.Transactions()...)
+	}
+
+	// Assemble the structured logger or the JavaScript tracer
+
+	stateBN := int(blocks[0].Header().Number.Int64() - 1)
+	s.b.EVM.Prepare(&stateBN)
+	BNu64 := uint64(stateBN)
+	s.b.EVM.StateDB.InitState(&BNu64)
+	stateDB := s.b.EVM.StateDB.CloneFromRoot()
+
+	log.Printf("Warming up %d txs", len(allTxs))
+	s.b.EVM.WarmUpCache(allTxs, stateDB)
+	log.Printf("Warmed up")
+
+	stateDB = s.b.EVM.StateDB.CloneFromRoot()
+	log.Printf("Tracing: block from %d using state %d\n", blocks[0].Header().Number, stateBN)
+	for i, block := range blocks {
+		txs := block.Transactions()
+		s.b.EVM.SetVMContextByBlock(block)
+		s.b.EVM.ExecuteTxs(txs, stateDB, config)
+
+		results := make([]*txTraceResult, len(txs))
+		for i, tx := range txs {
+			receipt := stateDB.GetReceipt(tx.Hash())
+			if len(receipt.Logs) > 0 {
+				trace := receipt.Logs[len(receipt.Logs)-1].Data
+				results[i] = &txTraceResult{
+					Result: json.RawMessage(trace),
+				}
+			}
+		}
+		txTraceResults[i] = results
+	}
+
+	// Run the transaction with tracing enabled.
+
+	return txTraceResults, nil
+}
+
+func (s *ApeActionAPI) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, config *tracers.TraceConfig) ([]*txTraceResult, error) {
+	log.Printf("tracing block number: %d", number)
+	var bn *big.Int
+	if number != -1 {
+		bn = big.NewInt(number.Int64())
+	}
+	blk, err := s.b.EVM.Conn.BlockByNumber(ctx, bn)
+	if err != nil {
+		return nil, err
+	}
+	results, err := s.traceBlocks(ctx, []*types.Block{blk}, config)
+	return results[0], err
+}
+
+func (s *ApeActionAPI) TraceBlockByNumberRange(ctx context.Context, numberFrom, numberTo rpc.BlockNumber, config *tracers.TraceConfig) ([][]*txTraceResult, error) {
+	log.Printf("tracing block number range: %d-%d", numberFrom, numberTo)
+	var bnFrom, bnTo *big.Int
+	if numberFrom != -1 {
+		bnFrom = big.NewInt(numberFrom.Int64())
+	}
+	if numberTo != -1 {
+		bnTo = big.NewInt(numberTo.Int64())
+	}
+	blockCnt := bnTo.Int64() - bnFrom.Int64() + 1
+	blks := make([]*types.Block, blockCnt)
+	for i := int64(0); i < blockCnt; i++ {
+		log.Printf("Fetching block %d", i)
+		blk, err := s.b.EVM.Conn.BlockByNumber(ctx, big.NewInt(i+bnFrom.Int64()))
+		if err != nil {
+			return nil, err
+		}
+		blks[i] = blk
+	}
+	results, err := s.traceBlocks(ctx, blks, config)
+	// spew.Dump(results)
+	return results, err
 }

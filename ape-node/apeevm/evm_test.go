@@ -10,7 +10,7 @@ import (
 
 func TestEVMExecute(t *testing.T) {
 	apeEVM := NewApeEVM("http://tractor.local:8545", common.HexToAddress("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
-	apeEVM.Prepare()
+	apeEVM.Prepare(nil)
 
 	tx, _, _ := apeEVM.Conn.TransactionByHash(context.Background(), common.HexToHash("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
 
@@ -18,5 +18,5 @@ func TestEVMExecute(t *testing.T) {
 	txs[0] = tx
 	txs[1] = tx
 
-	apeEVM.ExecuteTxs(txs, nil)
+	apeEVM.ExecuteTxs(txs, nil, nil)
 }

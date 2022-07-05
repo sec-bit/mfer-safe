@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -52,6 +53,18 @@ type ApeEVM struct {
 
 func NewApeEVM(rawurl string, impersonatedAccount common.Address) *ApeEVM {
 	apeEVM := &ApeEVM{}
+	splittedRawUrl := strings.Split(rawurl, "@")
+	var specificBlock *int
+	if len(splittedRawUrl) > 1 {
+		bnStr := splittedRawUrl[len(splittedRawUrl)-1]
+		bn, err := strconv.Atoi(bnStr)
+		if err != nil {
+			log.Panic(err)
+		}
+		specificBlock = &bn
+		lastIndex := strings.LastIndex(rawurl, "@"+bnStr)
+		rawurl = rawurl[:lastIndex]
+	}
 	ctx := context.Background()
 DIAL:
 	RpcClient, err := rpc.DialContext(ctx, rawurl)
@@ -66,9 +79,13 @@ DIAL:
 	apeEVM.callMutex = &sync.RWMutex{}
 	apeEVM.stateLock = &sync.RWMutex{}
 	apeEVM.impersonatedAccount = impersonatedAccount
-	apeEVM.Prepare()
+	apeEVM.Prepare(specificBlock)
 
-	go apeEVM.updatePendingBN()
+	if specificBlock == nil {
+		go apeEVM.updatePendingBN()
+	} else {
+		log.Printf("Using specific block %d, auto update block context disabled", *specificBlock)
+	}
 
 	return apeEVM
 }
@@ -104,7 +121,7 @@ func (a *ApeEVM) ResetState() {
 	if lastBlockHeader == nil {
 		return
 	}
-	a.StateDB.InitState()
+	a.StateDB.InitState(nil)
 	a.gasPool = new(core.GasPool)
 	a.gasPool.AddGas(lastBlockHeader.GasLimit)
 }
@@ -113,7 +130,7 @@ func (a *ApeEVM) ChainID() *big.Int {
 	return a.chainConfig.ChainID
 }
 
-func (a *ApeEVM) Prepare() {
+func (a *ApeEVM) Prepare(bn *int) {
 	a.chainConfig = core.DefaultGenesisBlock().Config
 	chainID, err := a.Conn.ChainID(a.ctx)
 	if err != nil {
@@ -132,8 +149,14 @@ func (a *ApeEVM) Prepare() {
 	}
 
 	if a.StateDB == nil {
-		a.StateDB = apestate.NewOverlayStateDB(a.RpcClient, int(lastBlockHeader.Number.Uint64()))
-		a.StateDB.InitState()
+		var blockNumber int
+		if bn == nil {
+			blockNumber = int(lastBlockHeader.Number.Int64())
+		} else {
+			blockNumber = *bn
+		}
+		a.StateDB = apestate.NewOverlayStateDB(a.RpcClient, blockNumber)
+		a.StateDB.InitState(nil)
 	}
 	a.StateDB.InitFakeAccounts()
 
@@ -145,7 +168,8 @@ func (a *ApeEVM) Prepare() {
 		return blk.Hash()
 	}
 	a.gasPool = new(core.GasPool)
-	a.gasPool.AddGas(lastBlockHeader.GasLimit)
+	// a.gasPool.AddGas(lastBlockHeader.GasLimit)
+	a.gasPool.AddGas(math.MaxUint64)
 	a.vmContext = vm.BlockContext{
 		CanTransfer: core.CanTransfer,
 		Transfer:    core.Transfer,
@@ -156,7 +180,9 @@ func (a *ApeEVM) Prepare() {
 		Time:        big.NewInt(0),
 		Difficulty:  big.NewInt(0),
 	}
-	a.setVMContext()
+	if bn == nil {
+		a.setVMContext()
+	}
 }
 
 func (a *ApeEVM) GetChainConfig() params.ChainConfig {
@@ -181,6 +207,14 @@ func (a *ApeEVM) setVMContext() {
 	a.vmContext.Time.SetInt64(int64(lastBlockHeader.Time + a.timeDelta))
 	a.vmContext.Difficulty.Set(lastBlockHeader.Difficulty)
 	a.vmContext.GasLimit = lastBlockHeader.GasLimit
+}
+
+func (a *ApeEVM) SetVMContextByBlock(block *types.Block) {
+	header := block.Header()
+	a.vmContext.BlockNumber.SetInt64(int64(header.Number.Uint64()))
+	a.vmContext.Time.SetInt64(int64(header.Time + a.timeDelta))
+	a.vmContext.Difficulty.Set(header.Difficulty)
+	a.vmContext.GasLimit = header.GasLimit
 }
 
 func (a *ApeEVM) GetVMContext() vm.BlockContext {
@@ -260,29 +294,90 @@ func (a *ApeEVM) TxToMessage(tx *types.Transaction) types.Message {
 	} else {
 		signer = types.NewLondonSigner(a.ChainID())
 	}
-	msg, _ := tx.AsMessage(signer, big.NewInt(10e9))
+	msg, _ := tx.AsMessage(signer, nil)
 	return msg
 }
 
-func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB) (execResults []error) {
+func (a *ApeEVM) WarmUpCache(txs types.Transactions, stateDB *apestate.OverlayStateDB) {
+	wg := sync.WaitGroup{}
+	txCh := make(chan *types.Transaction, 100)
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(db *apestate.OverlayStateDB) {
+			defer wg.Done()
+			for tx := range txCh {
+				msg := a.TxToMessage(tx)
+				stateDB := db.CloneFromRoot()
+				gp := new(core.GasPool)
+				gp.AddGas(math.MaxUint64)
+				// stateDB.(*apestate.OverlayStateDB).SetCodeHash(msg.From(), common.Hash{})
+				txContext := core.NewEVMTxContext(msg)
+				evm := vm.NewEVM(a.vmContext, txContext, stateDB, a.chainConfig, vm.Config{})
+				stateDB.StartLogCollection(tx.Hash(), blockHash)
+				core.ApplyMessage(evm, msg, gp)
+			}
+		}(stateDB)
+	}
+	for _, tx := range txs {
+		txCh <- tx
+	}
+	close(txCh)
+	wg.Wait()
+}
+
+func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB, config *tracers.TraceConfig) (execResults []error) {
 	execResults = make([]error, len(txs))
 	var (
 		gasUsed = uint64(0)
 		txIndex = 0
 	)
-
+	var (
+		tracer vm.Tracer
+		err    error
+	)
 	for i, tx := range txs {
-		// spew.Dump(tx)
+		txctx := &tracers.Context{
+			TxHash:  tx.Hash(),
+			TxIndex: i,
+		}
+
+		switch {
+		case config != nil && config.Tracer != nil:
+			// Define a meaningful timeout of a single transaction trace
+			timeout := time.Second * 1
+			if config.Timeout != nil {
+				if timeout, err = time.ParseDuration(*config.Timeout); err != nil {
+					return nil
+				}
+			}
+			// Constuct the JavaScript tracer to execute with
+			if tracer, err = tracers.New(*config.Tracer, txctx); err != nil {
+				return nil
+			}
+			// Handle timeouts and RPC cancellations
+			deadlineCtx, cancel := context.WithTimeout(context.Background(), timeout)
+			go func() {
+				<-deadlineCtx.Done()
+				if deadlineCtx.Err() == context.DeadlineExceeded {
+					tracer.(*tracers.Tracer).Stop(errors.New("execution timeout"))
+				}
+			}()
+			defer cancel()
+
+		case config == nil:
+			tracer = vm.NewStructLogger(nil)
+		default:
+			config.LogConfig.EnableMemory = true
+			config.LogConfig.EnableReturnData = true
+			config.LogConfig.DisableStorage = false
+			tracer = vm.NewStructLogger(config.LogConfig)
+		}
 		msg := a.TxToMessage(tx)
 		stateDB.(*apestate.OverlayStateDB).SetCodeHash(msg.From(), common.Hash{})
-		log.Printf("From: %s, To: %s, Nonce: %d, GasPrice: %d, Gas: %d, Hash: %s", msg.From(), msg.To(), msg.Nonce(), msg.GasPrice(), msg.Gas(), tx.Hash())
+		// log.Printf("From: %s, To: %s, Nonce: %d, GasPrice: %d, Gas: %d, Hash: %s", msg.From(), msg.To(), msg.Nonce(), msg.GasPrice(), msg.Gas(), tx.Hash())
 
 		txContext := core.NewEVMTxContext(msg)
 		snapshot := stateDB.Snapshot()
-		tracer, err := tracers.New("callTracer", new(tracers.Context))
-		if err != nil {
-			log.Panic(err)
-		}
 
 		// a.vmContext.BlockNumber.Add(a.vmContext.BlockNumber, big.NewInt(int64(msg.Nonce())))
 		// a.vmContext.Time.Add(a.vmContext.Time, big.NewInt(int64(msg.Nonce()*10)))
@@ -309,7 +404,6 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB) (execRes
 			execResults[i] = err
 			log.Printf("TxIdx: %d,  err: %v", txIndex, err)
 		}
-		stateDB.(*apestate.OverlayStateDB).FinishLogCollection()
 		gasUsed += msgResult.UsedGas
 
 		receipt := &types.Receipt{Type: tx.Type(), PostState: rootHash.Bytes(), CumulativeGasUsed: gasUsed}
@@ -327,7 +421,7 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB) (execRes
 			receipt.ContractAddress = crypto.CreateAddress(evm.TxContext.Origin, tx.Nonce())
 		}
 
-		traceResult, err := tracer.GetResult()
+		traceResult, err := tracer.(*tracers.Tracer).GetResult()
 		if err != nil {
 			log.Print(err)
 		}
@@ -341,8 +435,11 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB) (execRes
 		receipt.Logs = append(txExecutionLogs, traceLogs)
 		receipt.TransactionIndex = uint(txIndex)
 		// spew.Dump(receipt)
+		stateDB.(*apestate.OverlayStateDB).AddLog(traceLogs)
+		stateDB.(*apestate.OverlayStateDB).FinishLogCollection()
+
 		stateDB.(*apestate.OverlayStateDB).AddReceipt(tx.Hash(), receipt)
-		log.Printf("exec final depth: %d, snapshot revision id: %d", stateDB.(*apestate.OverlayStateDB).GetOverlayDepth(), snapshot)
+		// log.Printf("exec final depth: %d, snapshot revision id: %d", stateDB.(*apestate.OverlayStateDB).GetOverlayDepth(), snapshot)
 		// stateDB.(*apestate.OverlayStateDB).MergeTo(1)
 		txIndex++
 
