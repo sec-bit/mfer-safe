@@ -77,6 +77,10 @@ type OverlayState struct {
 	upstreamReqCh chan bool
 	clientReqCh   chan bool
 
+	shouldStop          chan bool
+	shoudRevertSnapshot chan bool
+	reason              string
+
 	stateID uint64
 }
 
@@ -115,14 +119,15 @@ func NewOverlayState(ctx context.Context, ec *rpc.Client, bn int64) *OverlayStat
 
 		upstreamReqCh: make(chan bool, 100),
 		clientReqCh:   make(chan bool, 100),
+
+		shouldStop: make(chan bool),
 	}
 	go state.timeSlot()
-	go state.statistics()
+	// go state.statistics()
 	return state
 }
 
 func (s *OverlayState) Derive(reason string) *OverlayState {
-	// log.Printf("derive from: %s, depth: %d", reason, s.deriveCnt+1)
 	state := &OverlayState{
 		parent:           s,
 		scratchPad:       make(map[string][]byte),
@@ -133,18 +138,51 @@ func (s *OverlayState) Derive(reason string) *OverlayState {
 		currentTxHash:    s.currentTxHash,
 		currentBlockHash: s.currentBlockHash,
 
-		stateID: rand.Uint64(),
+		stateID:    rand.Uint64(),
+		shouldStop: s.shouldStop,
+		reason:     reason,
 	}
+	log.Printf("derive from: %s, id: %02x, depth: %d", reason, state.stateID, state.deriveCnt)
 	copy(state.logs, s.logs)
 	for k, v := range s.receipts {
 		state.receipts[k] = v
 	}
+	go state.printStateID()
 	return state
 }
 
-func (s *OverlayState) Pop() *OverlayState {
-	s.scratchPad = make(map[string][]byte)
+func (s *OverlayState) Parent() *OverlayState {
+	// s.scratchPad = make(map[string][]byte)
+	log.Printf("poping id: %d, reason: %s", s.stateID, s.reason)
+	// close(s.shouldStop)
 	return s.parent
+}
+
+func (s *OverlayState) printStateID() {
+	for {
+		select {
+		// case <-time.After(time.Second * 2):
+		// 	parentID := uint64(0)
+		// 	if s.parent == nil {
+		// 		parentID = 0
+		// 	} else {
+		// 		parentID = s.parent.stateID
+		// 	}
+		// 	log.Printf("stateID: %02x, parentID: %02x, reason: %s", s.stateID, parentID, s.reason)
+		case <-s.shouldStop:
+			s.scratchPad = nil
+			s.logs = nil
+			s.txLogs = nil
+			log.Printf("stateID: %02x, reason: %s STOPPED", s.stateID, s.reason)
+			return
+		case <-s.shoudRevertSnapshot:
+			s.scratchPad = nil
+			s.logs = nil
+			s.txLogs = nil
+			log.Printf("stateID: %02x, reason: %s STOPPED [revert snapshot]", s.stateID, s.reason)
+			return
+		}
+	}
 }
 
 type RequestType int
@@ -209,11 +247,11 @@ func (s *OverlayState) loadAccountBatchRPC(accounts []common.Address) ([]Fetched
 		s.accessedAccountsMutex.Unlock()
 	}
 
-	step := 600
+	step := 50
 	start := time.Now()
 	for begin := 0; begin < len(batchElem); begin += step {
 		for {
-			s.upstreamReqCh <- true
+			// s.upstreamReqCh <- true
 			end := begin + step
 			if end > len(batchElem) {
 				end = len(batchElem)
@@ -296,7 +334,7 @@ func (s *OverlayState) loadStateBatchRPC(storageReqs []*StorageReq) error {
 	// TODO: dedup
 
 	s.rpcCnt++
-	s.upstreamReqCh <- true
+	// s.upstreamReqCh <- true
 	reqs := make([]rpc.BatchElem, len(storageReqs))
 	values := make([]common.Hash, len(storageReqs))
 	bn := big.NewInt(s.bn)
@@ -312,7 +350,7 @@ func (s *OverlayState) loadStateBatchRPC(storageReqs []*StorageReq) error {
 	// for i:=0;i<len(storageReqs);i+=2500 {
 
 	// }
-	step := 3000
+	step := 50
 	start := time.Now()
 	for begin := 0; begin < len(reqs); begin += step {
 		end := begin + step
@@ -335,7 +373,7 @@ func (s *OverlayState) loadStateBatchRPC(storageReqs []*StorageReq) error {
 
 func (s *OverlayState) loadStateRPC(account common.Address, key common.Hash) (common.Hash, error) {
 	s.rpcCnt++
-	s.upstreamReqCh <- true
+	// s.upstreamReqCh <- true
 	storage, err := s.conn.StorageAt(s.ctx, account, key, big.NewInt(s.bn))
 	if err != nil {
 		return common.Hash{}, err
@@ -523,8 +561,8 @@ func (s *OverlayState) resetScratchPad(bn int64) {
 	f.Seek(0, 0)
 	f.WriteString(cachedStr)
 
-	log.Printf("[reset scratchpad] sweeping scratchPad")
-	s.scratchPad = make(map[string][]byte)
+	// log.Printf("[reset scratchpad] sweeping scratchPad")
+	// s.scratchPad = make(map[string][]byte)
 
 	for _, result := range reqs {
 		stateKey := calcStateKey(result.Address, result.Key)
@@ -544,7 +582,9 @@ func (s *OverlayState) resetScratchPad(bn int64) {
 
 	accountResults, err := s.loadAccountBatchRPC(accounts)
 	if err != nil {
-		log.Panic(err)
+		log.Printf("loadAccountBatchRPC failed: %v", err)
+		s.scratchPadMutex.Unlock()
+		return
 	}
 	for i := range accountResults {
 		nonce := uint64(accountResults[i].Nonce)
@@ -582,12 +622,12 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 	}
 
 	if s.parent == nil {
-		s.clientReqCh <- true
+		// s.clientReqCh <- true
 		s.scratchPadMutex.Lock()
 		if val, ok := s.scratchPad[scratchpadKey]; ok {
-			if action == GET_STATE {
-				// log.Printf("got state at root, acc[%s].%s=0x%02x\nstateKey: %02x", account.Hex(), key.Hex(), val, scratchpadKey)
-			}
+			// if action == GET_STATE {
+			// log.Printf("got state at root, acc[%s].%s=0x%02x\nstateKey: %02x", account.Hex(), key.Hex(), val, scratchpadKey)
+			// }
 			s.scratchPadMutex.Unlock()
 			return val, nil
 		}
@@ -665,9 +705,9 @@ func (s *OverlayState) get(account common.Address, action RequestType, key commo
 
 	} else {
 		if val, ok := s.scratchPad[scratchpadKey]; ok {
-			if action == GET_STATE {
-				// log.Printf("got state at [depth:%d stateID: %02x], acc[%s].%s=0x%02x", s.deriveCnt, s.stateID, account.Hex(), key.Hex(), val)
-			}
+			// if action == GET_STATE {
+			// log.Printf("got state at [depth:%d stateID: %02x], acc[%s].%s=0x%02x", s.deriveCnt, s.stateID, account.Hex(), key.Hex(), val)
+			// }
 			return val, nil
 		}
 		return s.parent.get(account, action, key)
@@ -714,20 +754,29 @@ func NewOverlayStateDB(rpcClient *rpc.Client, blockNumber int) (db *OverlayState
 	return db
 }
 
-func (db *OverlayStateDB) InitState() {
+func (db *OverlayStateDB) InitState(bn *uint64) {
 	tmpDB := db.state
 	reason := "reset and protect underlying"
 	for {
 		if tmpDB.parent == nil {
 			db.state = tmpDB
-			bn, err := db.conn.BlockNumber(db.ctx)
-			if err != nil {
-				log.Printf("getBlockNumber error: %v, retrying", err)
-				time.Sleep(time.Second * 3)
-				continue
+			db.DestroyState()
+			db.state.shouldStop = make(chan bool)
+			var blockNumber uint64
+			if bn == nil {
+				var err error
+				blockNumber, err = db.conn.BlockNumber(db.ctx)
+				if err != nil {
+					log.Printf("getBlockNumber error: %v, retrying", err)
+					time.Sleep(time.Second * 3)
+					continue
+				}
+			} else {
+				blockNumber = *bn
 			}
+
 			log.Printf("Resetting Scratchpad... BN: %d", bn)
-			db.state.resetScratchPad(int64(bn))
+			db.state.resetScratchPad(int64(blockNumber))
 			log.Print(reason)
 			// log.Printf("pre driveID: %d", db.state.deriveCnt)
 			db.state = db.state.Derive(reason)
@@ -735,7 +784,7 @@ func (db *OverlayStateDB) InitState() {
 			break
 		} else {
 			// log.Printf("pop scratchPad from: %d", tmpDB.deriveCnt)
-			tmpDB = tmpDB.Pop()
+			tmpDB = tmpDB.Parent()
 		}
 	}
 }
@@ -893,20 +942,22 @@ func (db *OverlayStateDB) AddAddressToAccessList(addr common.Address) { return }
 func (db *OverlayStateDB) AddSlotToAccessList(addr common.Address, slot common.Hash) { return }
 
 func (db *OverlayStateDB) RevertToSnapshot(revisionID int) {
-	tmpState := db.state.Pop()
+	tmpState := db.state.Parent()
+	close(db.state.shoudRevertSnapshot)
 	log.Printf("Rollbacking... revision: %d, currentID: %d", revisionID, tmpState.deriveCnt)
 	for {
 		if tmpState.deriveCnt+1 == int64(revisionID) {
 			db.state = tmpState
 			break
 		} else {
-			tmpState = tmpState.Pop()
+			tmpState = tmpState.Parent()
 		}
 	}
 }
 
 func (db *OverlayStateDB) Snapshot() int {
 	newOverlayState := db.state.Derive("snapshot")
+	newOverlayState.shoudRevertSnapshot = make(chan bool)
 	db.state = newOverlayState
 	revisionID := int(newOverlayState.deriveCnt)
 	// log.Printf("TakeSnapshot: %d", revisionID)
@@ -937,7 +988,12 @@ func (db *OverlayStateDB) Clone() *OverlayStateDB {
 		refundGas: 0,
 		state:     db.state.Derive("clone"),
 	}
+	cpy.state.shouldStop = make(chan bool)
 	return cpy
+}
+
+func (db *OverlayStateDB) DestroyState() {
+	close(db.state.shouldStop)
 }
 
 func (db *OverlayStateDB) CloneFromRoot() *OverlayStateDB {
