@@ -11,6 +11,7 @@ import (
 	"github.com/dynm/ape-safer/apetracer"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -95,7 +96,9 @@ func (s *EthAPI) Call(ctx context.Context, args TransactionArgs, blockNrOrHash r
 		return nil, err
 	}
 
-	result, err := s.b.EVM.DoCall(&msg, false, s.b.EVM.StateDB.Clone())
+	stateDB := s.b.EVM.StateDB.Clone()
+	defer stateDB.DestroyState()
+	result, err := s.b.EVM.DoCall(&msg, false, stateDB)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +131,10 @@ func (s *EthAPI) EstimateGas(ctx context.Context, args TransactionArgs, blockNrO
 	// 	log.Panic(err)
 	// }
 	s.b.EVM.SetTracer(tracer)
-	result, err := s.b.EVM.DoCall(&msg, true, s.b.EVM.StateDB.Clone())
+	stateDB := s.b.EVM.StateDB.Clone()
+	defer stateDB.DestroyState()
+	defer tracer.Reset()
+	result, err := s.b.EVM.DoCall(&msg, true, stateDB)
 	// ret, resError := tracer.GetResult()
 	// if resError != nil {
 	// 	return 0, err
@@ -169,19 +175,16 @@ func (s *EthAPI) SendTransaction(ctx context.Context, args TransactionArgs) (com
 		addr := s.b.ImpersonatedAccount
 		from = &addr
 	}
-
-	gp := hexutil.Big(*big.NewInt(0))
+	zero := big.NewInt(0)
+	gp := hexutil.Big(*zero)
 	args.GasPrice = &gp
+	args.MaxFeePerGas = nil
+	args.MaxPriorityFeePerGas = nil
 
 	s.b.EVM.StateLock()
 	defer s.b.EVM.StateUnlock()
 	if args.Gas == nil {
-		gas, err := s.EstimateGas(ctx, args, nil)
-		if err != nil {
-			// return common.Hash{}, err
-			log.Printf("estimate gas failed: %v, use 0xffffff", err)
-			gas = hexutil.Uint64(0xffffff)
-		}
+		gas := hexutil.Uint64(math.MaxUint64 / 2)
 		args.Gas = &gas
 	}
 
@@ -196,7 +199,7 @@ func (s *EthAPI) SendTransaction(ctx context.Context, args TransactionArgs) (com
 	if err != nil {
 		log.Panic(err)
 	}
-	res := s.b.EVM.ExecuteTxs(types.Transactions{tx}, s.b.EVM.StateDB)
+	res := s.b.EVM.ExecuteTxs(types.Transactions{tx}, s.b.EVM.StateDB, nil)
 	s.b.TxPool.AddTx(tx, res[0])
 	return tx.Hash(), nil
 }
@@ -207,7 +210,7 @@ func (s *EthAPI) SendRawTransaction(ctx context.Context, input hexutil.Bytes) (c
 		return common.Hash{}, err
 	}
 
-	res := s.b.EVM.ExecuteTxs(types.Transactions{tx}, s.b.EVM.StateDB)
+	res := s.b.EVM.ExecuteTxs(types.Transactions{tx}, s.b.EVM.StateDB, nil)
 	s.b.TxPool.AddTx(tx, res[0])
 	return tx.Hash(), nil
 }

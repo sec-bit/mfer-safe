@@ -39,7 +39,7 @@ func (p *ProbeAPI) RunTxWithDifferentContext(ctx context.Context, txHash common.
 	stateDB := p.b.EVM.StateDB.CloneFromRoot()
 	stateDB.InitFakeAccounts()
 
-	p.b.EVM.ExecuteTxs(txs, stateDB)
+	p.b.EVM.ExecuteTxs(txs, stateDB, nil)
 	msg := p.b.EVM.TxToMessage(txToBeTraced)
 	stateDB.SetCodeHash(msg.From(), common.Hash{})
 
