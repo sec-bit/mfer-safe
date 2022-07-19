@@ -1029,6 +1029,7 @@ func (db *OverlayStateDB) GetReceipt(txHash common.Hash) *types.Receipt {
 			return nil
 		}
 		if receipt, ok := tmpStateDB.receipts[txHash]; ok {
+			receipt.Logs = db.GetLogs(txHash)
 			return receipt
 		}
 		tmpStateDB = tmpStateDB.parent

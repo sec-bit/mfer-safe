@@ -203,8 +203,16 @@ func (a *ApeEVM) SetTimeDelta(delta uint64) {
 	a.timeDelta = delta
 }
 
+func (a *ApeEVM) GetTimeDelta() uint64 {
+	return a.timeDelta
+}
+
 func (a *ApeEVM) SetBlockNumberDelta(delta uint64) {
 	a.blockNumberDelta = delta
+}
+
+func (a *ApeEVM) GetBlockNumberDelta() uint64 {
+	return a.blockNumberDelta
 }
 
 func (a *ApeEVM) setVMContext() {
