@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -14,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/kataras/golog"
 )
 
 type ExecutionResult struct {
@@ -87,7 +87,7 @@ func (s *DebugAPI) TraceTransaction(ctx context.Context, txHash common.Hash, con
 		if tx.Hash() == txHash {
 			txToBeTraced = tx
 			txs = txs[:i]
-			log.Printf("found: tx[%d], head len: %d", i, len(txs))
+			golog.Infof("found: tx[%d], head len: %d", i, len(txs))
 			break
 		}
 	}
@@ -215,7 +215,7 @@ func (s *DebugAPI) StorageRangeAt(ctx context.Context, blockHash common.Hash, tx
 			return StorageRangeResult{}, fmt.Errorf("tx[%s] not found", txIdxOrHash)
 		}
 	}
-	log.Printf("blockHash: %s, idx: %d, contractAddress: %s, keyStart: %s, maxResult: %d", blockHash.Hex(), txIndex, contractAddress.Hex(), keyStart.String(), maxResult)
+	golog.Infof("blockHash: %s, idx: %d, contractAddress: %s, keyStart: %s, maxResult: %d", blockHash.Hex(), txIndex, contractAddress.Hex(), keyStart.String(), maxResult)
 
 	var result StorageRangeResult
 	result.Storage = make(storageMap)

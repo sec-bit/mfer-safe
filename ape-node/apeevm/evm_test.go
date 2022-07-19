@@ -9,7 +9,7 @@ import (
 )
 
 func TestEVMExecute(t *testing.T) {
-	apeEVM := NewApeEVM("http://tractor.local:8545", common.HexToAddress("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
+	apeEVM := NewApeEVM("http://tractor.local:8545", common.HexToAddress("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), "./keycache.txt", 50)
 	apeEVM.Prepare(nil)
 
 	tx, _, _ := apeEVM.Conn.TransactionByHash(context.Background(), common.HexToHash("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))

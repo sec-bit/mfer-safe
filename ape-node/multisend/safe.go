@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/kataras/golog"
 )
 
 type Operation uint8
@@ -36,7 +37,7 @@ func GenerateSafeExecTx(safeAddr, to common.Address, value *big.Int, data []byte
 	if err != nil {
 		log.Panic(err)
 	}
-	log.Printf("encoded: %02x", encoded)
+	golog.Debugf("safe tx encoded: %02x", encoded)
 }
 
 type MultisendSafe struct {

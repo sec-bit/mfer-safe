@@ -17,6 +17,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/eth/tracers"
+	"github.com/kataras/golog"
 
 	"github.com/dynm/ape-safer/apesigner"
 	"github.com/dynm/ape-safer/apestate"
@@ -40,6 +41,8 @@ type ApeEVM struct {
 	SelfConn   *ethclient.Client
 
 	StateDB             *apestate.OverlayStateDB
+	keyCacheFilePath    string
+	batchSize           int
 	vmContext           vm.BlockContext
 	gasPool             *core.GasPool
 	chainConfig         *params.ChainConfig
@@ -51,7 +54,7 @@ type ApeEVM struct {
 	tracer              vm.Tracer
 }
 
-func NewApeEVM(rawurl string, impersonatedAccount common.Address) *ApeEVM {
+func NewApeEVM(rawurl string, impersonatedAccount common.Address, keyCacheFilePath string, batchSize int) *ApeEVM {
 	apeEVM := &ApeEVM{}
 	splittedRawUrl := strings.Split(rawurl, "@")
 	var specificBlock *int
@@ -69,7 +72,7 @@ func NewApeEVM(rawurl string, impersonatedAccount common.Address) *ApeEVM {
 DIAL:
 	RpcClient, err := rpc.DialContext(ctx, rawurl)
 	if err != nil {
-		log.Printf("Dial [%s] error: [%v] retrying", rawurl, err)
+		golog.Errorf("Dial [%s] error: [%v] retrying", rawurl, err)
 		time.Sleep(time.Second * 3)
 		goto DIAL
 	}
@@ -79,12 +82,19 @@ DIAL:
 	apeEVM.callMutex = &sync.RWMutex{}
 	apeEVM.stateLock = &sync.RWMutex{}
 	apeEVM.impersonatedAccount = impersonatedAccount
-	apeEVM.Prepare(specificBlock)
+	apeEVM.keyCacheFilePath = keyCacheFilePath
+	apeEVM.batchSize = batchSize
+	err = apeEVM.Prepare(specificBlock)
+	if err != nil {
+		golog.Errorf("Prepare error: %v", err)
+		time.Sleep(time.Second)
+		goto DIAL
+	}
 
 	if specificBlock == nil {
 		go apeEVM.updatePendingBN()
 	} else {
-		log.Printf("Using specific block %d, auto update block context disabled", *specificBlock)
+		golog.Infof("Using specific block %d, auto update block context disabled", *specificBlock)
 	}
 
 	return apeEVM
@@ -102,10 +112,10 @@ func (a *ApeEVM) GetLatestBlockHeader() *types.Header {
 	var raw json.RawMessage
 	err := a.RpcClient.CallContext(a.ctx, &raw, "eth_getBlockByNumber", "latest", false)
 	if err != nil {
-		log.Printf("GetBlockHeader err: %v", err)
+		golog.Errorf("GetBlockHeader err: %v", err)
 		return nil
 	} else if len(raw) == 0 {
-		log.Printf("GetBlockHeader: Block not found")
+		golog.Errorf("GetBlockHeader: Block not found")
 		return nil
 	}
 	// Decode header and transactions.
@@ -130,12 +140,11 @@ func (a *ApeEVM) ChainID() *big.Int {
 	return a.chainConfig.ChainID
 }
 
-func (a *ApeEVM) Prepare(bn *int) {
+func (a *ApeEVM) Prepare(bn *int) error {
 	a.chainConfig = core.DefaultGenesisBlock().Config
 	chainID, err := a.Conn.ChainID(a.ctx)
 	if err != nil {
-		log.Print(err)
-		return
+		return err
 	}
 	a.chainConfig.ChainID = chainID
 
@@ -145,7 +154,7 @@ func (a *ApeEVM) Prepare(bn *int) {
 
 	lastBlockHeader := a.GetLatestBlockHeader()
 	if lastBlockHeader == nil {
-		log.Panic("[Prepare] cannot get last block")
+		return fmt.Errorf("cannot get last block")
 	}
 
 	if a.StateDB == nil {
@@ -155,7 +164,7 @@ func (a *ApeEVM) Prepare(bn *int) {
 		} else {
 			blockNumber = *bn
 		}
-		a.StateDB = apestate.NewOverlayStateDB(a.RpcClient, blockNumber)
+		a.StateDB = apestate.NewOverlayStateDB(a.RpcClient, blockNumber, a.keyCacheFilePath, a.batchSize)
 		a.StateDB.InitState(nil)
 	}
 	a.StateDB.InitFakeAccounts()
@@ -183,6 +192,7 @@ func (a *ApeEVM) Prepare(bn *int) {
 	if bn == nil {
 		a.setVMContext()
 	}
+	return nil
 }
 
 func (a *ApeEVM) GetChainConfig() params.ChainConfig {
@@ -228,17 +238,17 @@ func (a *ApeEVM) updatePendingBN() {
 
 	sub, err := a.Conn.SubscribeNewHead(a.ctx, headerChan)
 	if err != nil {
-		log.Printf("subscribe err: %v, use poll instead", err)
+		golog.Warnf("subscribe err: %v, use poll instead", err)
 	} else {
 		ticker5Sec.Stop()
 		go func() {
 			for {
 				<-sub.Err()
-				log.Printf("sub err=%v, resubscribing", err)
+				golog.Errorf("sub err=%v, resubscribing", err)
 			RESUB:
 				sub, err = a.Conn.SubscribeNewHead(a.ctx, headerChan)
 				if err != nil {
-					log.Printf("sub err=%v, retrying", err)
+					golog.Errorf("sub err=%v, retrying", err)
 					time.Sleep(time.Second)
 					goto RESUB
 				}
@@ -250,17 +260,17 @@ func (a *ApeEVM) updatePendingBN() {
 		select {
 		case <-tickerCheckMissingTireNode.C:
 			stateHeight := a.StateDB.StateBlockNumber()
-			log.Printf("Checking if height@%d(0x%02x) is missing", stateHeight, stateHeight)
+			golog.Infof("Checking if height@%d(0x%02x) is missing", stateHeight, stateHeight)
 			balance, err := a.Conn.BalanceAt(a.ctx, common.HexToAddress("0x0000000000000000000000000000000000000000"), big.NewInt(stateHeight))
 			if err != nil {
-				log.Print(err)
+				golog.Error(err)
 			}
 			if err != nil && strings.Contains(err.Error(), "missing trie node") {
-				log.Print("InitState (missing trie node)")
+				golog.Warn("InitState (missing trie node)")
 				// a.StateDB.InitState()
 				a.SelfClient.Call(nil, "ape_reExecTxPool")
 			} else if balance.Sign() == 0 { //some node will not tell us missing trie node
-				log.Print("InitState (0x0000...0000 balance is zero)")
+				golog.Warn("InitState (0x0000...0000 balance is zero)")
 				// a.StateDB.InitState()
 				a.SelfClient.Call(nil, "ape_reExecTxPool")
 			}
@@ -271,7 +281,7 @@ func (a *ApeEVM) updatePendingBN() {
 			a.setVMContext()
 		}
 		sizeStr := humanize.Bytes(uint64(a.StateDB.CacheSize()))
-		fmt.Printf("[Update] BN: %d, StateBlock: %d, Ts: %d, Diff: %d, GasLimit: %d, Cache: %s, RPCReq: %d\n",
+		golog.Infof("[Update] BN: %d, StateBlock: %d, Ts: %d, Diff: %d, GasLimit: %d, Cache: %s, RPCReq: %d",
 			a.vmContext.BlockNumber, a.StateDB.StateBlockNumber(), a.vmContext.Time, a.vmContext.Difficulty, a.vmContext.GasLimit, sizeStr, a.StateDB.RPCRequestCount())
 	}
 
@@ -365,7 +375,10 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB, config *
 			defer cancel()
 
 		case config == nil:
-			tracer = vm.NewStructLogger(nil)
+			tracer, err = tracers.New("callTracer", txctx)
+			if err != nil {
+				log.Panic(err)
+			}
 		default:
 			config.LogConfig.EnableMemory = true
 			config.LogConfig.EnableReturnData = true
@@ -390,7 +403,7 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB, config *
 		msgResult, err := core.ApplyMessage(evm, msg, a.gasPool)
 		// spew.Dump(msgResult)
 		if err != nil {
-			log.Printf("rejected tx: %s, from: %s, err: %v", tx.Hash().Hex(), msg.From(), err)
+			golog.Errorf("rejected tx: %s, from: %s, err: %v", tx.Hash().Hex(), msg.From(), err)
 			stateDB.(*apestate.OverlayStateDB).RevertToSnapshot(snapshot)
 			continue
 		}
@@ -402,7 +415,7 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB, config *
 				err = fmt.Errorf("execution reverted: %v", reason)
 			}
 			execResults[i] = err
-			log.Printf("TxIdx: %d,  err: %v", txIndex, err)
+			golog.Errorf("TxIdx: %d,  err: %v", txIndex, err)
 		}
 		gasUsed += msgResult.UsedGas
 
@@ -423,7 +436,7 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB, config *
 
 		traceResult, err := tracer.(*tracers.Tracer).GetResult()
 		if err != nil {
-			log.Print(err)
+			golog.Error(err)
 		}
 
 		txExecutionLogs := stateDB.(*apestate.OverlayStateDB).GetLogs(tx.Hash())

@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/kataras/golog"
 )
 
 type ApeActionAPI struct {
@@ -56,6 +57,11 @@ func (s *ApeActionAPI) SetTimeDelta(delta uint64) {
 
 func (s *ApeActionAPI) Impersonate(account common.Address) {
 	s.b.ImpersonatedAccount = account
+}
+
+func (s *ApeActionAPI) SetBatchSize(batchSize int) {
+	golog.Infof("Setting batch size to %d", batchSize)
+	s.b.EVM.StateDB.SetBatchSize(batchSize)
 }
 
 func (s *ApeActionAPI) SetBlockNumberDelta(delta uint64) {
@@ -198,7 +204,7 @@ func (s *ApeActionAPI) SimulateSafeExec(ctx context.Context, safeOwners []common
 		return nil, err
 	}
 	for i, safeOwner := range safeOwners {
-		log.Printf("safeOwner[%d]: %s", i, safeOwner.Hex())
+		golog.Infof("safeOwner[%d]: %s", i, safeOwner.Hex())
 	}
 
 	// s.b.EVM.StateDB.InitState()
@@ -303,12 +309,12 @@ func (s *ApeActionAPI) traceBlocks(ctx context.Context, blocks []*types.Block, c
 	s.b.EVM.StateDB.InitState(&BNu64)
 	stateDB := s.b.EVM.StateDB.CloneFromRoot()
 
-	log.Printf("Warming up %d txs", len(allTxs))
+	golog.Infof("Warming up %d txs", len(allTxs))
 	s.b.EVM.WarmUpCache(allTxs, stateDB)
-	log.Printf("Warmed up")
+	golog.Info("Warmed up")
 
 	stateDB = s.b.EVM.StateDB.CloneFromRoot()
-	log.Printf("Tracing: block from %d using state %d\n", blocks[0].Header().Number, stateBN)
+	golog.Infof("Tracing: block from %d using state %d\n", blocks[0].Header().Number, stateBN)
 	for i, block := range blocks {
 		txs := block.Transactions()
 		s.b.EVM.SetVMContextByBlock(block)
@@ -333,7 +339,7 @@ func (s *ApeActionAPI) traceBlocks(ctx context.Context, blocks []*types.Block, c
 }
 
 func (s *ApeActionAPI) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, config *tracers.TraceConfig) ([]*txTraceResult, error) {
-	log.Printf("tracing block number: %d", number)
+	golog.Infof("tracing block number: %d", number)
 	var bn *big.Int
 	if number != -1 {
 		bn = big.NewInt(number.Int64())
@@ -347,7 +353,7 @@ func (s *ApeActionAPI) TraceBlockByNumber(ctx context.Context, number rpc.BlockN
 }
 
 func (s *ApeActionAPI) TraceBlockByNumberRange(ctx context.Context, numberFrom, numberTo rpc.BlockNumber, config *tracers.TraceConfig) ([][]*txTraceResult, error) {
-	log.Printf("tracing block number range: %d-%d", numberFrom, numberTo)
+	golog.Infof("tracing block number range: %d-%d", numberFrom, numberTo)
 	var bnFrom, bnTo *big.Int
 	if numberFrom != -1 {
 		bnFrom = big.NewInt(numberFrom.Int64())
@@ -358,7 +364,7 @@ func (s *ApeActionAPI) TraceBlockByNumberRange(ctx context.Context, numberFrom, 
 	blockCnt := bnTo.Int64() - bnFrom.Int64() + 1
 	blks := make([]*types.Block, blockCnt)
 	for i := int64(0); i < blockCnt; i++ {
-		log.Printf("Fetching block %d", i)
+		golog.Infof("Fetching block %d", i)
 		blk, err := s.b.EVM.Conn.BlockByNumber(ctx, big.NewInt(i+bnFrom.Int64()))
 		if err != nil {
 			return nil, err
