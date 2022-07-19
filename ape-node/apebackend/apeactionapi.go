@@ -52,6 +52,7 @@ func (s *ApeActionAPI) ReExecTxPool() {
 }
 
 func (s *ApeActionAPI) SetTimeDelta(delta uint64) {
+	golog.Infof("Setting time delta to %d", delta)
 	s.b.EVM.SetTimeDelta(delta)
 }
 
@@ -65,6 +66,7 @@ func (s *ApeActionAPI) SetBatchSize(batchSize int) {
 }
 
 func (s *ApeActionAPI) SetBlockNumberDelta(delta uint64) {
+	golog.Infof("Setting block number delta to %d", delta)
 	s.b.EVM.SetBlockNumberDelta(delta)
 }
 
