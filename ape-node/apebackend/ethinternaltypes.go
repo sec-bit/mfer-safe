@@ -3,7 +3,6 @@ package apebackend
 import (
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/dynm/ape-safer/apestate"
@@ -13,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/kataras/golog"
 )
 
 // TransactionArgs represents the arguments to construct a new transaction
@@ -77,7 +77,7 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64, baseFee *big.Int) (t
 		gas = uint64(*args.Gas)
 	}
 	if globalGasCap != 0 && globalGasCap < gas {
-		log.Print("Caller gas above allowance, capping", "requested", gas, "cap", globalGasCap)
+		golog.Info("Caller gas above allowance, capping", "requested", gas, "cap", globalGasCap)
 		gas = globalGasCap
 	}
 	var (
