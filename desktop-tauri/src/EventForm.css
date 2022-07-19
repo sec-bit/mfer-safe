@@ -1,0 +1,127 @@
+* {
+    box-sizing: border-box;
+  }
+  
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+      monospace;
+  }
+  
+  main {
+    display: block;
+    padding: 2rem;
+  }
+  
+  section {
+    display: block;
+    margin-bottom: 2rem;
+  }
+  
+  form {
+    display: block;
+  }
+  
+  label {
+    display: block;
+  }
+  
+  input[type='text'],
+  textarea {
+    width: 100%;
+  }
+  
+  input[type='text']:read-only,
+  textarea:read-only {
+    background: #f4f4f4;
+  }
+  
+  textarea {
+    height: 200px;
+  }
+  
+  pre {
+    width: 100%;
+    white-space: break-spaces;
+    word-break: break-all;
+  }
+  
+  footer {
+    display: block;
+  }
+  
+  fieldset {
+    border: 1px solid black;
+    margin-bottom: 1rem;
+  }
+  
+  details {
+    position: relative;
+    min-height: 50px;
+  }
+  
+  details .close {
+    display: none;
+    background: white;
+  }
+  
+  details[open] .open {
+    display: none;
+  }
+  
+  details[open] .close {
+    display: inline-block;
+  }
+  
+  details > summary {
+    width: 100%;
+    list-style: none;
+    cursor: pointer;
+    position: absolute;
+    min-height: 25px;
+  }
+  
+  details > summary::marker {
+    display: none;
+  }
+  
+  dl {
+    width: 100%;
+    overflow: hidden;
+    /* background: #ff0; */
+    padding: 0;
+    margin: 10;
+    font-family: monospace;
+  }
+  dt {
+    text-align: right;
+    float: left;
+    width: 10%;
+    /* adjust the width; make sure the total of both is 100% */
+    /* background: #cc0; */
+    padding: 0;
+    padding-right:7.5px;
+    margin: 0
+  }
+  dd {
+    float: left;
+    width: 90%;
+    padding-left:7.5px;
+    /* adjust the width; make sure the total of both is 100% */
+    /* background: #dd0; */
+    /* padding: 0; */
+    margin: 0;
+  }
+  ol{
+    margin-top: 0px;
+    padding-left: 24px;
+    margin-bottom: 0px;
+  }
