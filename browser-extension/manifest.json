@@ -1,0 +1,47 @@
+{
+    // Comments are accepted in the manifest, even though it is JSON.
+    "manifest_version": 3,
+    "name": "Ape Safer",
+    "description": "Ape Safer's Browser extension",
+    "version": "0.0.1",
+    "icons": {
+        // "16": "logo/logo-16.png",
+        // "48": "logo/logo-48.png",
+        // "128": "logo/logo-128.png"
+    },
+    "action": {
+        "default_title": "Ape Safer",
+        "default_popup": "popup/popup.html"
+    },
+    "permissions": [
+        "storage"
+    ],
+    "host_permissions": [
+        "*://*/*"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "js": [
+                "content-script.js"
+            ],
+            "matches": [
+                "https://*/*",
+                "http://*/*"
+            ],
+            "run_at": "document_start"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "script.js"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ]
+}
