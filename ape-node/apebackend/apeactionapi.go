@@ -56,6 +56,10 @@ func (s *ApeActionAPI) SetTimeDelta(delta uint64) {
 	s.b.EVM.SetTimeDelta(delta)
 }
 
+func (s *ApeActionAPI) GetTimeDelta() uint64 {
+	return s.b.EVM.GetTimeDelta()
+}
+
 func (s *ApeActionAPI) Impersonate(account common.Address) {
 	s.b.ImpersonatedAccount = account
 }
@@ -68,6 +72,10 @@ func (s *ApeActionAPI) SetBatchSize(batchSize int) {
 func (s *ApeActionAPI) SetBlockNumberDelta(delta uint64) {
 	golog.Infof("Setting block number delta to %d", delta)
 	s.b.EVM.SetBlockNumberDelta(delta)
+}
+
+func (s *ApeActionAPI) GetBlockNumberDelta() uint64 {
+	return s.b.EVM.GetBlockNumberDelta()
 }
 
 func (s *ApeActionAPI) PrintMoney(account common.Address) {
