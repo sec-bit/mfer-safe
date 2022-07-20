@@ -9,7 +9,7 @@ export default function LogView() {
   useEffect(() => {
     listen("apenode-event", (event) => {
       if (event.payload !== undefined) {
-        setLog((log) => log + event.payload + "\n");
+        setLog((log) => event.payload + "\n" + log);
       }
     });
   }, []);
