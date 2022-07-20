@@ -1,22 +1,16 @@
 #!/bin/bash
 
-cd ape-node/cmd/ape-safer
+ROOT_DIR=$(pwd)
+cd ape-node/cmd/ape-node
 echo "Building ape-node"
-go build -o ../../../desktop-app/bin/ape-safer
-cd ../../../
+TRIPLE=$(rustc -Vv | grep host | cut -f2 -d' ')
+go build -o $ROOT_DIR/desktop-tauri/src-tauri/bin/ape-node-$TRIPLE
+cd $ROOT_DIR
 
 git submodule update --init --recursive
 node preprocess_topic0.js
 
-cd frontend
-echo "Building frontend"
-npm i
-npm run build
-cd ..
-
-rm -rf desktop-app/frontend
-cp -r frontend/build desktop-app/frontend
-cd desktop-app
+cd desktop-tauri
 echo "Building desktop app"
 npm i
-npm run make
+npm run tauri build
