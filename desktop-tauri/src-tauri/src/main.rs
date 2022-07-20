@@ -12,8 +12,6 @@ use tauri::api::path::BaseDirectory;
 use tauri::api::process::Command;
 use tauri::api::process::CommandChild;
 use tauri::api::process::CommandEvent;
-use tauri::utils::assets::EmbeddedAssets;
-use tauri::Context;
 use tauri::Env;
 use tauri::Manager;
 use tokio::sync::mpsc;
@@ -172,7 +170,8 @@ fn main() {
         Some(BaseDirectory::Home),
     )
     .expect("resolve path failed");
-    println!("{:?}", config_path);
+    println!("config path: {:?}", config_path);
+
     let ape_node_args = ApeNodeArgs::new(config_path.clone());
     let ape_node = SpawnApeNode::new(
         BIN_PATH.to_string(),
@@ -190,6 +189,11 @@ fn main() {
                         CommandEvent::Stdout(line) => {
                             main_window
                                 .emit("apenode-event", Some(format!("{:?}", line)))
+                                .expect("failed to emit event");
+                        }
+                        CommandEvent::Stderr(line) => {
+                            main_window
+                                .emit("apenode-event", Some(format!("StdErr: {:?}", line)))
                                 .expect("failed to emit event");
                         }
                         unhandeled_line => {
