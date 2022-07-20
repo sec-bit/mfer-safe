@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -34,6 +35,8 @@ func defaultKeyCacheFilePath() string {
 	return path.Join(cacheDir, fileName)
 }
 
+const VERSION = "0.1.0"
+
 func main() {
 	account := flag.String("account", "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "impersonate account")
 	upstreamURL := flag.String("upstream", "http://tractor.local:8545", "upstream node")
@@ -43,8 +46,13 @@ func main() {
 	batchSize := flag.Int("batchsize", 100, "batch request size")
 	logPath := flag.String("logpath", "./ape-node.log", "path to log file")
 	debugLevel := flag.String("debug", "info", "debug level")
+	version := flag.Bool("version", false, "show version")
 	flag.Parse()
 
+	if *version {
+		fmt.Println("ape-node version:", VERSION)
+		os.Exit(0)
+	}
 	pathToLog := *logPath
 	// pathToLog += ".%Y%m%d%H%M.log"
 	rl, err := rotatelogs.New(
