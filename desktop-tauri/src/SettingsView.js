@@ -51,12 +51,16 @@ export default function SettingsView() {
 
   useEffect(() => {
     getApeNodeArgs().then((args) => {
+      // avoid Safari: "Fetch API cannot load due to access control checks" fill init arg
+      setImpersonatedAccount(args.impersonated_account);
+
       setWeb3RPC(args.web3_rpc);
       setListenHostPort(args.listen_host_port);
       setKeyCacheFilePath(args.key_cache_file_path);
       setBatchSize(args.batch_size);
     });
 
+    // avoid Safari: "Fetch API cannot load due to access control checks" override after ape-node is started
     docall("eth_requestAccounts", [])
       .then((res) => res.json())
       .then((result) => {
