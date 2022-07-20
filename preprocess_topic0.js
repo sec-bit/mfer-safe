@@ -9,6 +9,6 @@ sigHashes.forEach((name) => {
 });
 
 fs.writeFileSync(
-  path.join("frontend", "src", "eventSignatures.json"),
+  path.join("desktop-tauri", "src", "eventSignatures.json"),
   JSON.stringify(processedSignature)
 );
