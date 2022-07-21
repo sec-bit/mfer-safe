@@ -122,39 +122,40 @@ export default function SettingsView() {
   }, [blockTimeDelta]);
 
   return (
-    <div>
-      <Box
-        component="div"
-        sx={{
-          "& .MuiTextField-root": { m: 1, width: "500px" },
-        }}
-        noValidate
-        autoComplete="off"
-        justifyContent="center"
+    <Box
+      component="div"
+      sx={{
+        "& .MuiTextField-root": { m: 1, width: "450px" },
+      }}
+      noValidate
+      autoComplete="off"
+      justifyContent="center"
+      alignItems="center"
+      display="flex"
+    >
+      <Stack
+        direction="column"
+        justifyContent="flex-end"
         alignItems="center"
-        display="flex"
+        spacing={2}
+        padding={2}
+        width="500px"
       >
-        <Stack
-          direction="column"
-          justifyContent="flex-end"
-          alignItems="center"
-          spacing={2}
-          padding={2}
-        >
-          <IconButtonTextField
-            state={impersonatedAccount}
-            setState={setImpersonatedAccount}
-            label="Impersonated Account"
-            icon={FaceRetouchingNaturalIcon}
-            onClick={() => impersonate()}
-          />
-          <IconButtonTextField
-            state={faucetReceiver}
-            setState={setFaucetReceiver}
-            label="Void Ether"
-            icon={PrintIcon}
-            onClick={() => printMoney()}
-          />
+        <IconButtonTextField
+          state={impersonatedAccount}
+          setState={setImpersonatedAccount}
+          label="Impersonated Account"
+          icon={FaceRetouchingNaturalIcon}
+          onClick={() => impersonate()}
+        />
+        <IconButtonTextField
+          state={faucetReceiver}
+          setState={setFaucetReceiver}
+          label="Void Ether"
+          icon={PrintIcon}
+          onClick={() => printMoney()}
+        />
+        <Stack direction="row" width="100%">
           <IconButtonTextField
             state={batchSize}
             setState={setBatchSize}
@@ -162,46 +163,45 @@ export default function SettingsView() {
             icon={ViewModuleIcon}
             onClick={() => setBatch()}
           />
-          <Stack direction="row" width="50%">
-            <IconButtonTextField
-              state={blockNumberDelta}
-              setState={setBlockNumberDelta}
-              label="Block Number Delta"
-              icon={ConfirmationNumberIcon}
-              onClick={() => setBNDelta()}
-            />
-            <IconButtonTextField
-              state={blockTimeDelta}
-              setState={setBlockTimeDelta}
-              label="Block Time Delta"
-              icon={MoreTimeIcon}
-              onClick={() => setBTDelta()}
-            />
-          </Stack>
-
           <IconButtonTextField
-            state={web3Rpc}
-            setState={setWeb3RPC}
-            label="Upstream Web3 RPC"
-            icon={SaveIcon}
-            onClick={() => saveRPCSettings()}
+            state={blockNumberDelta}
+            setState={setBlockNumberDelta}
+            label="Block Number Delta"
+            icon={ConfirmationNumberIcon}
+            onClick={() => setBNDelta()}
           />
           <IconButtonTextField
-            state={listenHostPort}
-            setState={setListenHostPort}
-            label="ApeSafer Listen"
-            icon={LanIcon}
-            onClick={() => saveRPCSettings()}
-          />
-          <IconButtonTextField
-            state={keyCacheFilePath}
-            setState={setKeyCacheFilePath}
-            label="Key Cache File Path"
-            icon={MapIcon}
-            onClick={() => saveRPCSettings()}
+            state={blockTimeDelta}
+            setState={setBlockTimeDelta}
+            label="Block Time Delta"
+            icon={MoreTimeIcon}
+            onClick={() => setBTDelta()}
           />
         </Stack>
-      </Box>
-    </div>
+
+        <IconButtonTextField
+          state={web3Rpc}
+          setState={setWeb3RPC}
+          label="Upstream Web3 RPC"
+          icon={SaveIcon}
+          onClick={() => saveRPCSettings()}
+        />
+
+        <IconButtonTextField
+          state={listenHostPort}
+          setState={setListenHostPort}
+          label="ApeSafer Listen"
+          icon={LanIcon}
+          onClick={() => saveRPCSettings()}
+        />
+        <IconButtonTextField
+          state={keyCacheFilePath}
+          setState={setKeyCacheFilePath}
+          label="Key Cache File Path"
+          icon={MapIcon}
+          onClick={() => saveRPCSettings()}
+        />
+      </Stack>
+    </Box>
   );
 }
