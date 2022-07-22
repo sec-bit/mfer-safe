@@ -64,7 +64,7 @@ export default function SettingsView() {
     docall("eth_requestAccounts", [])
       .then((res) => res.json())
       .then((result) => {
-        setImpersonatedAccount(result.result[0]);
+        setImpersonatedAccount(ethers.utils.getAddress(result.result[0]));
       });
 
     docall("ape_getBlockNumberDelta", [])
@@ -135,7 +135,7 @@ export default function SettingsView() {
     <Box
       component="div"
       sx={{
-        "& .MuiTextField-root": { m: 1, width: "450px" },
+        "& .MuiTextField-root": { m: 1, width: "470px" },
       }}
       noValidate
       autoComplete="off"
@@ -149,7 +149,7 @@ export default function SettingsView() {
         alignItems="center"
         spacing={2}
         padding={2}
-        width="500px"
+        width="520px"
       >
         <IconButtonTextField
           state={impersonatedAccount}
