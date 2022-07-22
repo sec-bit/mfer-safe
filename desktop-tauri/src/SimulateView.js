@@ -195,7 +195,7 @@ function SimulateView() {
           />
           {participants.map((participant) => {
               console.log(participant);
-              return <TextField label={participant} helperText="Signature override" value="" />;
+              return <TextField label={participant} helperText="Signature override" value="" size="small"/>;
             })}
           <TextField
             id="outlined-read-only-input"
