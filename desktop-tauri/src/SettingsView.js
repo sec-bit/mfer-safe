@@ -13,7 +13,7 @@ import LanIcon from "@mui/icons-material/Lan";
 import MapIcon from "@mui/icons-material/Map";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import MoreTimeIcon from "@mui/icons-material/MoreTime";
-
+import { ethers } from "ethers";
 import { invoke } from "@tauri-apps/api/tauri";
 
 function IconButtonTextField(props) {
@@ -101,8 +101,18 @@ export default function SettingsView() {
     batchSize,
   ]);
 
+  const provider = new ethers.providers.JsonRpcProvider("http://" + listenHostPort);
+
   const impersonate = useCallback(() => {
-    docall("ape_impersonate", [impersonatedAccount]);
+    if (impersonatedAccount.endsWith(".eth")) {
+      provider.resolveName(impersonatedAccount).then(address => {
+        setImpersonatedAccount(address)
+        docall("ape_impersonate", [address]);
+      })
+    } else {
+      setImpersonatedAccount(impersonatedAccount)
+      docall("ape_impersonate", [impersonatedAccount]);
+    }
   }, [impersonatedAccount]);
 
   const printMoney = useCallback(() => {
