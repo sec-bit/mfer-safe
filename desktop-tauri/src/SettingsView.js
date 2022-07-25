@@ -22,6 +22,10 @@ function IconButtonTextField(props) {
       fullWidth
       value={props.state}
       onChange={(e) => props.setState(e.target.value)}
+      onKeyPress={(e) => {
+        if(e.key === "Enter"){props.onClick()}
+      }
+    }
       label={props.label}
       InputProps={{
         endAdornment: (
@@ -161,7 +165,7 @@ export default function SettingsView() {
         <IconButtonTextField
           state={faucetReceiver}
           setState={setFaucetReceiver}
-          label="Void Ether"
+          label="Mint 1000 Ether To"
           icon={PrintIcon}
           onClick={() => printMoney()}
         />
