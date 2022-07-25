@@ -1015,7 +1015,18 @@ func (db *OverlayStateDB) AddLog(vLog *types.Log) {
 }
 
 func (db *OverlayStateDB) GetLogs(txHash common.Hash) []*types.Log {
-	return db.state.txLogs[txHash]
+	tmpStateDB := db.state
+	logs := make([]*types.Log, 0)
+	for {
+		if tmpStateDB.txLogs[txHash] != nil {
+			logs = append(tmpStateDB.txLogs[txHash], logs...)
+		}
+		if tmpStateDB.parent == nil {
+			break
+		}
+		tmpStateDB = tmpStateDB.parent
+	}
+	return logs
 }
 
 func (db *OverlayStateDB) AddReceipt(txHash common.Hash, receipt *types.Receipt) {
