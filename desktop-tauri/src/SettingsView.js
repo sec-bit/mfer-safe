@@ -1,4 +1,4 @@
-import { React, useState, useCallback, useEffect } from "react";
+import { React, useState, useCallback, useEffect,useMemo } from "react";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
@@ -105,7 +105,7 @@ export default function SettingsView() {
     batchSize,
   ]);
 
-  const provider = new ethers.providers.JsonRpcProvider("http://" + listenHostPort);
+  const provider = useMemo(()=>new ethers.providers.JsonRpcProvider("http://" + listenHostPort),[listenHostPort])
 
   const impersonate = useCallback(() => {
     if (impersonatedAccount.endsWith(".eth")) {
@@ -117,7 +117,7 @@ export default function SettingsView() {
       setImpersonatedAccount(impersonatedAccount)
       docall("ape_impersonate", [impersonatedAccount]);
     }
-  }, [impersonatedAccount]);
+  }, [impersonatedAccount, provider]);
 
   const printMoney = useCallback(() => {
     docall("ape_printMoney", [faucetReceiver]);
