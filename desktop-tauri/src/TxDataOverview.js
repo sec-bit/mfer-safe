@@ -1,7 +1,7 @@
 import { React, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { docall } from "./utils.js";
-
+import Box from "@mui/material/Box";
 import { DataGrid } from "@mui/x-data-grid";
 
 const columns = [
@@ -60,14 +60,15 @@ export default function TxDataOverview() {
     return () => clearInterval(interval);
   }, []);
   return (
-    <div style={{ height: 600, width: "100%" }}>
+    <Box>
       <DataGrid
+      autoHeight={true}
         rows={rows}
         columns={columns}
         pageSize={50}
         rowsPerPageOptions={[50]}
         checkboxSelection
       />
-    </div>
+    </Box>
   );
 }
