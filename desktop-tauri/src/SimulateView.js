@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
-import Container from "@mui/material/Container";
 import Stack from "@mui/material/Stack";
-import Input from "@mui/material/Input";
 import TextField from "@mui/material/TextField";
 import Checkbox from "@mui/material/Checkbox";
 import FormGroup from "@mui/material/FormGroup";
@@ -19,7 +17,6 @@ import Fieldset from "./FieldSet.js";
 
 import eventSignatures from "./eventSignatures.json";
 
-const ariaLabel = { "aria-label": "description" };
 
 const simulate = (setTrace, participants) => {
   docall("ape_simulateSafeExec", [participants])
@@ -62,6 +59,8 @@ function SimulateView() {
   const [owners, setOwners] = useState({ owners: [], threshold: 0 });
   const [checked, setChecked] = useState({});
   const [participants, setParticipants] = useState([]);
+  const [overrideSignature, setOverrideSignature] = useState({});
+  const [overridedExecCallData, setOverridedExecCallData] = useState("");
 
   useEffect(() => {
     docall("ape_getSafeOwnersAndThreshold", [])
@@ -126,44 +125,34 @@ function SimulateView() {
             margin="8px"
             display="flex"
           >
-              <FormControl
-                required
-                error={error}
-                component="fieldset"
-                variant="standard"
-              >
-                <FormLabel component="legend">
-                  Select {owners.threshold} Participants
-                </FormLabel>
-                <FormGroup>
-                  {owners.owners.map((owner, idx) => {
-                    return (
-                      <FormControlLabel
-                        key={idx}
-                        control={
-                          <Checkbox
-                            checked={checked[owner]}
-                            onChange={handleChange}
-                            name={owner}
-                          />
-                        }
-                        label={owner}
-                      />
-                    );
-                  })}
-                </FormGroup>
-              </FormControl>
+            <FormControl
+              required
+              error={error}
+              component="fieldset"
+              variant="standard"
+            >
+              <FormLabel component="legend">
+                Select {owners.threshold} Participants
+              </FormLabel>
+              <FormGroup>
+                {owners.owners.map((owner, idx) => {
+                  return (
+                    <FormControlLabel
+                      key={idx}
+                      control={
+                        <Checkbox
+                          checked={checked[owner]}
+                          onChange={handleChange}
+                          name={owner}
+                        />
+                      }
+                      label={owner}
+                    />
+                  );
+                })}
+              </FormGroup>
+            </FormControl>
           </Box>
-          {/* <Box
-            sx={{
-              "& .MuiTextField-root": { m: 1, width: "100%" },
-            }}
-          > */}
-            {/* <FormLabel component="legend">
-                  Signature Override
-                </FormLabel> */}
-            
-          {/* </Box> */}
           <div>
             <Button
               disabled={error}
@@ -186,17 +175,45 @@ function SimulateView() {
             id="outlined-read-only-input"
             multiline
             maxRows={4}
-            value={callTrace.approveInfo.execCalldata || ""}
+            value={overridedExecCallData || callTrace.approveInfo.execCalldata || ""}
             label="ExecTransaction Calldata"
             InputProps={{
               readOnly: true,
             }}
             variant="filled"
           />
-          {participants.map((participant) => {
-              console.log(participant);
-              return <TextField label={participant} helperText="Signature override" value="" size="small"/>;
-            })}
+          {participants.map((participant, idx) => {
+            // console.log(participant);
+            return <TextField
+              label={participant}
+              key={idx}
+              helperText="Signature override"
+              value={overrideSignature[participant] ||""}
+              onChange={(e) => {
+                var sig = e.target.value;
+                var newOverridedSig = { ...overrideSignature, [participant]: sig };
+                setOverrideSignature(newOverridedSig)
+                // console.log("new overrided sig:",newOverridedSig);
+                var toBeReplaced = callTrace.approveInfo.execCalldata
+                for (const [p, sig] of Object.entries(newOverridedSig)) {
+                  if (!sig.startsWith("0x")) {
+                    setOverridedExecCallData("");
+                    continue;
+                  }
+                  if (sig.length !== 132) {
+                    setOverridedExecCallData("");
+                    continue;
+                  }
+                  // console.log("sig:",sig, "p:",p);
+                  // TODO: replace start at the end of the calldata
+                  var searchString = "000000000000000000000000" + p.slice(2) + "000000000000000000000000000000000000000000000000000000000000000001"
+                  toBeReplaced = toBeReplaced.replace(searchString, sig.slice(2))
+                }
+                setOverridedExecCallData(toBeReplaced);
+              }
+              }
+              size="small" />;
+          })}
           <TextField
             id="outlined-read-only-input"
             multiline
