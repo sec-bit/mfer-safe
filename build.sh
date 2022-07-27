@@ -8,6 +8,7 @@ go build -o $ROOT_DIR/mfer-safe-desktop-app/src-tauri/bin/mfer-node-$TRIPLE
 cd $ROOT_DIR
 
 git submodule update --init --recursive
+echo "Building topic0"
 node preprocess_topic0.js
 
 cd mfer-safe-desktop-app
