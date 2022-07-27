@@ -1,9 +1,8 @@
 import * as React from "react";
 import { useState, useEffect } from "react";
 import TextareaAutosize from "@mui/material/TextareaAutosize";
-import { emit, listen } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 
-const MAX_LOG_LEN = 10;
 export default function LogView() {
   const [log, setLog] = useState("");
   useEffect(() => {
