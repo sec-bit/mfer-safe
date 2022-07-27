@@ -13,7 +13,7 @@ node preprocess_topic0.js
 cd mfer-safe-desktop-app
 echo "Building desktop app"
 npm i
-if [ "dev" -eq "$1" ]; then
+if [ "dev" = "$1" ]; then
   npm run tauri dev
 else
   npm run tauri build
