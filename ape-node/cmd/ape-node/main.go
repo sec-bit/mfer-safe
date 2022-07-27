@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dynm/ape-safer/apebackend"
-	"github.com/dynm/ape-safer/apeevm"
-	"github.com/dynm/ape-safer/apetxpool"
+	"github.com/dynm/mfer-safe/mferbackend"
+	"github.com/dynm/mfer-safe/mferevm"
+	"github.com/dynm/mfer-safe/mfertxpool"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/node"
@@ -26,7 +26,7 @@ func defaultKeyCacheFilePath() string {
 	if err != nil {
 		log.Panic(err)
 	}
-	cacheDir = path.Join(cacheDir, "ApeSafer")
+	cacheDir = path.Join(cacheDir, "MferSafe")
 	err = os.MkdirAll(cacheDir, os.ModePerm)
 	if err != nil {
 		log.Panic(err)
@@ -44,13 +44,13 @@ func main() {
 
 	keyCacheFilePath := flag.String("keycache", defaultKeyCacheFilePath(), "state key cache file path")
 	batchSize := flag.Int("batchsize", 100, "batch request size")
-	logPath := flag.String("logpath", "./ape-node.log", "path to log file")
+	logPath := flag.String("logpath", "./mfer-node.log", "path to log file")
 	debugLevel := flag.String("debug", "info", "debug level")
 	version := flag.Bool("version", false, "show version")
 	flag.Parse()
 
 	if *version {
-		fmt.Println("ape-node version:", VERSION)
+		fmt.Println("mfer-node version:", VERSION)
 		os.Exit(0)
 	}
 	pathToLog := *logPath
@@ -78,7 +78,7 @@ func main() {
 	}
 
 	stack, err := node.New(&node.Config{
-		Name: "ape-safer",
+		Name: "mfer-safe",
 		P2P: p2p.Config{
 			NoDial:     true,
 			ListenAddr: "",
@@ -93,11 +93,11 @@ func main() {
 	}
 
 	impersonatedAccount := common.HexToAddress(*account)
-	apeEVM := apeevm.NewApeEVM(*upstreamURL, impersonatedAccount, *keyCacheFilePath, *batchSize)
-	txPool := apetxpool.NewApeTxPool()
-	b := apebackend.NewApeBackend(apeEVM, txPool, impersonatedAccount)
+	mferEVM := mferevm.NewMferEVM(*upstreamURL, impersonatedAccount, *keyCacheFilePath, *batchSize)
+	txPool := mfertxpool.NewMferTxPool()
+	b := mferbackend.NewMferBackend(mferEVM, txPool, impersonatedAccount)
 
-	stack.RegisterAPIs(apebackend.GetEthAPIs(b))
+	stack.RegisterAPIs(mferbackend.GetEthAPIs(b))
 	if err := stack.Start(); err != nil {
 		log.Panic(err)
 	}
@@ -107,8 +107,8 @@ func main() {
 		log.Panic(err)
 	}
 
-	apeEVM.SelfClient = selfRPCClient
-	apeEVM.SelfConn = ethclient.NewClient(selfRPCClient)
+	mferEVM.SelfClient = selfRPCClient
+	mferEVM.SelfConn = ethclient.NewClient(selfRPCClient)
 
 	select {}
 }

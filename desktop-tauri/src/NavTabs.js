@@ -20,14 +20,14 @@ const actions = [
     icon: <ReplayIcon />,
     name: "Re-Exec",
     onClick: () => {
-      docall("ape_reExecTxPool", []);
+      docall("mfer_reExecTxPool", []);
     },
   },
   {
     icon: <DeleteForeverIcon />,
     name: "Clear TxPool",
     onClick: () => {
-      docall("ape_clearTxPool", []);
+      docall("mfer_clearTxPool", []);
     },
   },
 ];

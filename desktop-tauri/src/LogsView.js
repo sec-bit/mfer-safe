@@ -7,7 +7,7 @@ const MAX_LOG_LEN = 10;
 export default function LogView() {
   const [log, setLog] = useState("");
   useEffect(() => {
-    listen("apenode-event", (event) => {
+    listen("mfernode-event", (event) => {
       if (event.payload !== undefined) {
         setLog((log) => event.payload + "\n" + log);
       }

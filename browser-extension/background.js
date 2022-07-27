@@ -1,7 +1,7 @@
-const apesaferSettings = { rpc: "http://localhost:10545" };
+const mfersafeSettings = { rpc: "http://localhost:10545" };
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  apesaferSettings.rpc = changes.key.newValue;
+  mfersafeSettings.rpc = changes.key.newValue;
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -24,10 +24,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       method: "POST",
     };
 
-    fetch(apesaferSettings.rpc, reqBody)
+    fetch(mfersafeSettings.rpc, reqBody)
       .then((response) => response.json())
       .then((body) => {
-        console.log("apenode response:", body);
+        console.log("mfernode response:", body);
         sendResponse(body);
       });
   } catch (e) {

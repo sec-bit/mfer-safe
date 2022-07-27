@@ -1,4 +1,4 @@
-package apebackend
+package mferbackend
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 	"math/big"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/dynm/ape-safer/apesigner"
-	"github.com/dynm/ape-safer/multisend"
+	"github.com/dynm/mfer-safe/mfersigner"
+	"github.com/dynm/mfer-safe/multisend"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core"
@@ -20,29 +20,29 @@ import (
 	"github.com/kataras/golog"
 )
 
-type ApeActionAPI struct {
-	b *ApeBackend
+type MferActionAPI struct {
+	b *MferBackend
 }
 
-func (s *ApeActionAPI) resetState() {
+func (s *MferActionAPI) resetState() {
 	s.b.EVM.ResetState()
 	s.b.EVM.Prepare(nil)
 }
 
-func (s *ApeActionAPI) ResetState() {
+func (s *MferActionAPI) ResetState() {
 	s.b.EVM.StateLock()
 	defer s.b.EVM.StateUnlock()
 	s.resetState()
 }
 
-func (s *ApeActionAPI) ClearTxPool() {
+func (s *MferActionAPI) ClearTxPool() {
 	s.b.TxPool.Reset()
 	s.b.EVM.StateLock()
 	defer s.b.EVM.StateUnlock()
 	s.resetState()
 }
 
-func (s *ApeActionAPI) ReExecTxPool() {
+func (s *MferActionAPI) ReExecTxPool() {
 	s.b.EVM.StateLock()
 	defer s.b.EVM.StateUnlock()
 	s.resetState()
@@ -51,34 +51,34 @@ func (s *ApeActionAPI) ReExecTxPool() {
 	s.b.TxPool.SetResults(execResults)
 }
 
-func (s *ApeActionAPI) SetTimeDelta(delta uint64) {
+func (s *MferActionAPI) SetTimeDelta(delta uint64) {
 	golog.Infof("Setting time delta to %d", delta)
 	s.b.EVM.SetTimeDelta(delta)
 }
 
-func (s *ApeActionAPI) GetTimeDelta() uint64 {
+func (s *MferActionAPI) GetTimeDelta() uint64 {
 	return s.b.EVM.GetTimeDelta()
 }
 
-func (s *ApeActionAPI) Impersonate(account common.Address) {
+func (s *MferActionAPI) Impersonate(account common.Address) {
 	s.b.ImpersonatedAccount = account
 }
 
-func (s *ApeActionAPI) SetBatchSize(batchSize int) {
+func (s *MferActionAPI) SetBatchSize(batchSize int) {
 	golog.Infof("Setting batch size to %d", batchSize)
 	s.b.EVM.StateDB.SetBatchSize(batchSize)
 }
 
-func (s *ApeActionAPI) SetBlockNumberDelta(delta uint64) {
+func (s *MferActionAPI) SetBlockNumberDelta(delta uint64) {
 	golog.Infof("Setting block number delta to %d", delta)
 	s.b.EVM.SetBlockNumberDelta(delta)
 }
 
-func (s *ApeActionAPI) GetBlockNumberDelta() uint64 {
+func (s *MferActionAPI) GetBlockNumberDelta() uint64 {
 	return s.b.EVM.GetBlockNumberDelta()
 }
 
-func (s *ApeActionAPI) PrintMoney(account common.Address) {
+func (s *MferActionAPI) PrintMoney(account common.Address) {
 	s.b.EVM.StateDB.AddBalance(account, new(big.Int).Mul(big.NewInt(1e18), big.NewInt(1000)))
 }
 
@@ -105,12 +105,12 @@ type MultiSendData struct {
 	DebugTrace          json.RawMessage       `json:"debugTrace"`
 }
 
-func NewApeActionAPI(b *ApeBackend) *ApeActionAPI {
-	api := &ApeActionAPI{b}
+func NewMferActionAPI(b *MferBackend) *MferActionAPI {
+	api := &MferActionAPI{b}
 	return api
 }
 
-func (s *ApeActionAPI) GetTxs() ([]*TxData, error) {
+func (s *MferActionAPI) GetTxs() ([]*TxData, error) {
 	txs, execResult := s.b.TxPool.GetPoolTxs()
 	txData := make([]*TxData, len(txs))
 	for i, tx := range txs {
@@ -140,7 +140,7 @@ func (s *ApeActionAPI) GetTxs() ([]*TxData, error) {
 	return txData, nil
 }
 
-func (s *ApeActionAPI) getSafeOwnersAndThreshold(safeAddr common.Address) ([]common.Address, int, error) {
+func (s *MferActionAPI) getSafeOwnersAndThreshold(safeAddr common.Address) ([]common.Address, int, error) {
 	safe, err := multisend.NewGnosisSafe(safeAddr, s.b.EVM.SelfConn)
 	if err != nil {
 		return nil, 0, err
@@ -161,7 +161,7 @@ type SafeOwnerInfo struct {
 	Threshold int              `json:"threshold"`
 }
 
-func (s *ApeActionAPI) GetSafeOwnersAndThreshold() (*SafeOwnerInfo, error) {
+func (s *MferActionAPI) GetSafeOwnersAndThreshold() (*SafeOwnerInfo, error) {
 	owners, threshold, err := s.getSafeOwnersAndThreshold(s.b.ImpersonatedAccount)
 	if err != nil {
 		return nil, err
@@ -169,7 +169,7 @@ func (s *ApeActionAPI) GetSafeOwnersAndThreshold() (*SafeOwnerInfo, error) {
 	return &SafeOwnerInfo{Owners: owners, Threshold: threshold}, nil
 }
 
-func (s *ApeActionAPI) SimulateSafeExec(ctx context.Context, safeOwners []common.Address) (*MultiSendData, error) {
+func (s *MferActionAPI) SimulateSafeExec(ctx context.Context, safeOwners []common.Address) (*MultiSendData, error) {
 	safeAddr := s.b.ImpersonatedAccount
 	txs, _ := s.b.TxPool.GetPoolTxs()
 	txData := make([]*TxData, len(txs))
@@ -229,7 +229,7 @@ func (s *ApeActionAPI) SimulateSafeExec(ctx context.Context, safeOwners []common
 		SafeNonce:           nonce.Int64(),
 	}
 
-	signer := apesigner.NewSigner(s.b.EVM.ChainID().Int64())
+	signer := mfersigner.NewSigner(s.b.EVM.ChainID().Int64())
 
 	// approveHash
 	safeOwnersNonce := make([]uint64, len(safeOwners))
@@ -298,7 +298,7 @@ type txTraceResult struct {
 	Error  string      `json:"error,omitempty"`  // Trace failure produced by the tracer
 }
 
-func (s *ApeActionAPI) traceBlocks(ctx context.Context, blocks []*types.Block, config *tracers.TraceConfig) ([][]*txTraceResult, error) {
+func (s *MferActionAPI) traceBlocks(ctx context.Context, blocks []*types.Block, config *tracers.TraceConfig) ([][]*txTraceResult, error) {
 	if len(blocks) == 0 {
 		return nil, errors.New("no blocks supplied")
 	}
@@ -348,7 +348,7 @@ func (s *ApeActionAPI) traceBlocks(ctx context.Context, blocks []*types.Block, c
 	return txTraceResults, nil
 }
 
-func (s *ApeActionAPI) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, config *tracers.TraceConfig) ([]*txTraceResult, error) {
+func (s *MferActionAPI) TraceBlockByNumber(ctx context.Context, number rpc.BlockNumber, config *tracers.TraceConfig) ([]*txTraceResult, error) {
 	golog.Infof("tracing block number: %d", number)
 	var bn *big.Int
 	if number != -1 {
@@ -362,7 +362,7 @@ func (s *ApeActionAPI) TraceBlockByNumber(ctx context.Context, number rpc.BlockN
 	return results[0], err
 }
 
-func (s *ApeActionAPI) TraceBlockByNumberRange(ctx context.Context, numberFrom, numberTo rpc.BlockNumber, config *tracers.TraceConfig) ([][]*txTraceResult, error) {
+func (s *MferActionAPI) TraceBlockByNumberRange(ctx context.Context, numberFrom, numberTo rpc.BlockNumber, config *tracers.TraceConfig) ([][]*txTraceResult, error) {
 	golog.Infof("tracing block number range: %d-%d", numberFrom, numberTo)
 	var bnFrom, bnTo *big.Int
 	if numberFrom != -1 {

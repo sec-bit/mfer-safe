@@ -123,19 +123,19 @@ impl ApeNodeArgs {
     }
 }
 
-const BIN_PATH: &'static str = "ape-node";
+const BIN_PATH: &'static str = "mfer-node";
 
 #[tauri::command]
-fn restart_ape_node(
-    ape_node_args: ApeNodeArgs,
+fn restart_mfer_node(
+    mfer_node_args: ApeNodeArgs,
     state: tauri::State<'_, SpawnApeNode>,
     app: tauri::AppHandle,
 ) -> bool {
-    // println!("{:#?}, {:#?}", ape_node_args, state);
+    // println!("{:#?}, {:#?}", mfer_node_args, state);
     let child = state.child.lock().unwrap().take();
     child.unwrap().kill().unwrap();
 
-    let args = ape_node_args.to_args();
+    let args = mfer_node_args.to_args();
     let (mut rx, child) = Command::new_sidecar(BIN_PATH.to_string())
         .expect("failed to load sidecar binary")
         .args(args.clone())
@@ -147,14 +147,14 @@ fn restart_ape_node(
             app_state.tx.clone().send(event).await.unwrap();
         }
     });
-    ape_node_args.save_config(state.config_path.clone());
-    *state.args.lock().unwrap() = ape_node_args;
+    mfer_node_args.save_config(state.config_path.clone());
+    *state.args.lock().unwrap() = mfer_node_args;
     *state.child.lock().unwrap() = Some(child);
     true
 }
 
 #[tauri::command]
-fn get_ape_node_args(state: tauri::State<'_, SpawnApeNode>) -> ApeNodeArgs {
+fn get_mfer_node_args(state: tauri::State<'_, SpawnApeNode>) -> ApeNodeArgs {
     state.args.lock().unwrap().clone()
 }
 
@@ -166,16 +166,16 @@ fn main() {
         context.config(),
         context.package_info(),
         &Env::default(),
-        ".config/apesafer.json",
+        ".config/mfersafe.json",
         Some(BaseDirectory::Home),
     )
     .expect("resolve path failed");
     println!("config path: {:?}", config_path);
 
-    let ape_node_args = ApeNodeArgs::new(config_path.clone());
-    let ape_node = SpawnApeNode::new(
+    let mfer_node_args = ApeNodeArgs::new(config_path.clone());
+    let mfer_node = SpawnApeNode::new(
         BIN_PATH.to_string(),
-        ape_node_args,
+        mfer_node_args,
         tx.clone(),
         config_path.clone(), // just for saving config path
     );
@@ -188,12 +188,12 @@ fn main() {
                     match event {
                         CommandEvent::Stdout(line) => {
                             main_window
-                                .emit("apenode-event", Some(format!("{:?}", line)))
+                                .emit("mfernode-event", Some(format!("{:?}", line)))
                                 .expect("failed to emit event");
                         }
                         CommandEvent::Stderr(line) => {
                             main_window
-                                .emit("apenode-event", Some(format!("StdErr: {:?}", line)))
+                                .emit("mfernode-event", Some(format!("StdErr: {:?}", line)))
                                 .expect("failed to emit event");
                         }
                         unhandeled_line => {
@@ -209,10 +209,10 @@ fn main() {
         } else {
             tauri::Menu::default()
         })
-        .manage(ape_node)
+        .manage(mfer_node)
         .invoke_handler(tauri::generate_handler![
-            restart_ape_node,
-            get_ape_node_args,
+            restart_mfer_node,
+            get_mfer_node_args,
         ])
         .run(context)
         .expect("error while running tauri application");

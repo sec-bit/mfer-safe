@@ -1,0 +1,2 @@
+[ERRO] 2022/07/27 10:23:12.108919 Prepare error: Post "http://tractor.local:8545": dial tcp: lookup tractor.local: no such host
+[ERRO] 2022/07/27 10:23:18.116684 Prepare error: Post "http://tractor.local:8545": dial tcp: lookup tractor.local: no such host

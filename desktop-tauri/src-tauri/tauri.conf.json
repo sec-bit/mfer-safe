@@ -7,7 +7,7 @@
     "distDir": "../build"
   },
   "package": {
-    "productName": "ApeSafer",
+    "productName": "MferSafe",
     "version": "0.1.0"
   },
   "tauri": {
@@ -16,7 +16,7 @@
         "sidecar": true,
         "scope": [
           {
-            "name": "bin/ape-node",
+            "name": "bin/mfer-node",
             "sidecar": true
           }
         ]
@@ -30,7 +30,7 @@
         "depends": []
       },
       "externalBin": [
-        "bin/ape-node"
+        "bin/mfer-node"
       ],
       "icon": [
         "icons/32x32.png",
@@ -39,7 +39,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "xyz.donttrustverify.apesafer",
+      "identifier": "xyz.donttrustverify.mfersafe",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
@@ -68,7 +68,7 @@
         "fullscreen": false,
         "height": 700,
         "resizable": true,
-        "title": "ApeSafer",
+        "title": "MferSafe",
         "width": 800
       }
     ]
