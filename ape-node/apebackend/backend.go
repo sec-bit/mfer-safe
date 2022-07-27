@@ -1,27 +1,27 @@
-package apebackend
+package mferbackend
 
 import (
-	"github.com/dynm/ape-safer/apeevm"
-	"github.com/dynm/ape-safer/apetxpool"
-	"github.com/dynm/ape-safer/constant"
+	"github.com/dynm/mfer-safe/constant"
+	"github.com/dynm/mfer-safe/mferevm"
+	"github.com/dynm/mfer-safe/mfertxpool"
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type ApeBackend struct {
-	EVM                 *apeevm.ApeEVM
-	TxPool              *apetxpool.ApeTxPool
+type MferBackend struct {
+	EVM                 *mferevm.MferEVM
+	TxPool              *mfertxpool.MferTxPool
 	ImpersonatedAccount common.Address
 }
 
-func NewApeBackend(e *apeevm.ApeEVM, txPool *apetxpool.ApeTxPool, impersonatedAccount common.Address) *ApeBackend {
-	return &ApeBackend{
+func NewMferBackend(e *mferevm.MferEVM, txPool *mfertxpool.MferTxPool, impersonatedAccount common.Address) *MferBackend {
+	return &MferBackend{
 		EVM:                 e,
 		TxPool:              txPool,
 		ImpersonatedAccount: impersonatedAccount,
 	}
 }
 
-func (b *ApeBackend) Accounts() []common.Address {
+func (b *MferBackend) Accounts() []common.Address {
 	return []common.Address{
 		b.ImpersonatedAccount,
 		constant.FAKE_ACCOUNT_0,

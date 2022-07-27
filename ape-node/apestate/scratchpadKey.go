@@ -1,4 +1,4 @@
-package apestate
+package mferstate
 
 type ScratchPadKey string
 

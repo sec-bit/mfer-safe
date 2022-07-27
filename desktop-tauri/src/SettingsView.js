@@ -2,7 +2,7 @@ import { React, useState, useCallback, useEffect,useMemo } from "react";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
-import { getApeNodeArgs, docall } from "./utils.js";
+import { getMferNodeArgs, docall } from "./utils.js";
 import SaveIcon from "@mui/icons-material/Save";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import FaceRetouchingNaturalIcon from "@mui/icons-material/FaceRetouchingNatural";
@@ -54,7 +54,7 @@ export default function SettingsView() {
   const [keyCacheFilePath, setKeyCacheFilePath] = useState("");
 
   useEffect(() => {
-    getApeNodeArgs().then((args) => {
+    getMferNodeArgs().then((args) => {
       // avoid Safari: "Fetch API cannot load due to access control checks" fill init arg
       setImpersonatedAccount(args.impersonated_account);
 
@@ -64,21 +64,21 @@ export default function SettingsView() {
       setBatchSize(args.batch_size);
     });
 
-    // avoid Safari: "Fetch API cannot load due to access control checks" override after ape-node is started
+    // avoid Safari: "Fetch API cannot load due to access control checks" override after mfer-node is started
     docall("eth_requestAccounts", [])
       .then((res) => res.json())
       .then((result) => {
         setImpersonatedAccount(ethers.utils.getAddress(result.result[0]));
       });
 
-    docall("ape_getBlockNumberDelta", [])
+    docall("mfer_getBlockNumberDelta", [])
       .then((res) => res.json())
       .then((result) => {
         setBlockNumberDelta(result.result);
       });
   }, []);
 
-  docall("ape_getTimeDelta", [])
+  docall("mfer_getTimeDelta", [])
     .then((res) => res.json())
     .then((result) => {
       setBlockTimeDelta(result.result);
@@ -86,7 +86,7 @@ export default function SettingsView() {
 
   const saveRPCSettings = useCallback(() => {
     let args = {
-      apeNodeArgs: {
+      mferNodeArgs: {
         impersonated_account: impersonatedAccount,
         web3_rpc: web3Rpc,
         listen_host_port: listenHostPort,
@@ -96,7 +96,7 @@ export default function SettingsView() {
       },
     };
     console.log(args);
-    invoke("restart_ape_node", args);
+    invoke("restart_mfer_node", args);
   }, [
     impersonatedAccount,
     web3Rpc,
@@ -111,28 +111,28 @@ export default function SettingsView() {
     if (impersonatedAccount.endsWith(".eth")) {
       provider.resolveName(impersonatedAccount).then(address => {
         setImpersonatedAccount(address)
-        docall("ape_impersonate", [address]);
+        docall("mfer_impersonate", [address]);
       })
     } else {
       setImpersonatedAccount(impersonatedAccount)
-      docall("ape_impersonate", [impersonatedAccount]);
+      docall("mfer_impersonate", [impersonatedAccount]);
     }
   }, [impersonatedAccount, provider]);
 
   const printMoney = useCallback(() => {
-    docall("ape_printMoney", [faucetReceiver]);
+    docall("mfer_printMoney", [faucetReceiver]);
   }, [faucetReceiver]);
 
   const setBatch = useCallback(() => {
-    docall("ape_setBatchSize", [Number(batchSize)]);
+    docall("mfer_setBatchSize", [Number(batchSize)]);
   }, [batchSize]);
 
   const setBNDelta = useCallback(() => {
-    docall("ape_setBlockNumberDelta", [Number(blockNumberDelta)]);
+    docall("mfer_setBlockNumberDelta", [Number(blockNumberDelta)]);
   }, [blockNumberDelta]);
 
   const setBTDelta = useCallback(() => {
-    docall("ape_setTimeDelta", [Number(blockTimeDelta)]);
+    docall("mfer_setTimeDelta", [Number(blockTimeDelta)]);
   }, [blockTimeDelta]);
 
   return (
@@ -204,7 +204,7 @@ export default function SettingsView() {
         <IconButtonTextField
           state={listenHostPort}
           setState={setListenHostPort}
-          label="ApeSafer Listen"
+          label="MferSafe Listen"
           icon={LanIcon}
           onClick={() => saveRPCSettings()}
         />

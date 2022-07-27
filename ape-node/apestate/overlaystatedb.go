@@ -1,4 +1,4 @@
-package apestate
+package mferstate
 
 import (
 	"bufio"
@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dynm/ape-safer/constant"
+	"github.com/dynm/mfer-safe/constant"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -187,12 +187,12 @@ const (
 )
 
 var (
-	BALANCE_KEY  = crypto.Keccak256Hash([]byte("apesafer-scratchpad-balance"))
-	NONCE_KEY    = crypto.Keccak256Hash([]byte("apesafer-scratchpad-nonce"))
-	CODE_KEY     = crypto.Keccak256Hash([]byte("apesafer-scratchpad-code"))
-	CODEHASH_KEY = crypto.Keccak256Hash([]byte("apesafer-scratchpad-codehash"))
-	STATE_KEY    = crypto.Keccak256Hash([]byte("apesafer-scratchpad-state"))
-	SUICIDE_KEY  = crypto.Keccak256Hash([]byte("apesafer-suicide-state"))
+	BALANCE_KEY  = crypto.Keccak256Hash([]byte("mfersafe-scratchpad-balance"))
+	NONCE_KEY    = crypto.Keccak256Hash([]byte("mfersafe-scratchpad-nonce"))
+	CODE_KEY     = crypto.Keccak256Hash([]byte("mfersafe-scratchpad-code"))
+	CODEHASH_KEY = crypto.Keccak256Hash([]byte("mfersafe-scratchpad-codehash"))
+	STATE_KEY    = crypto.Keccak256Hash([]byte("mfersafe-scratchpad-state"))
+	SUICIDE_KEY  = crypto.Keccak256Hash([]byte("mfersafe-suicide-state"))
 )
 
 type FetchedAccountResult struct {

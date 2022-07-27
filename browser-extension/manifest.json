@@ -1,8 +1,8 @@
 {
     // Comments are accepted in the manifest, even though it is JSON.
     "manifest_version": 3,
-    "name": "Ape Safer",
-    "description": "Ape Safer's Browser extension",
+    "name": "MferSafe",
+    "description": "MferSafe's Browser extension",
     "version": "0.0.1",
     "icons": {
         // "16": "logo/logo-16.png",
@@ -10,7 +10,7 @@
         // "128": "logo/logo-128.png"
     },
     "action": {
-        "default_title": "Ape Safer",
+        "default_title": "MferSafe",
         "default_popup": "popup/popup.html"
     },
     "permissions": [

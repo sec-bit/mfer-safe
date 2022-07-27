@@ -38,7 +38,7 @@ const genRows = function (txs, abiDict) {
 };
 
 const updateTxList = function (setRows) {
-  docall("ape_getTxs", [])
+  docall("mfer_getTxs", [])
     .then((res) => res.json())
     .then(
       (result) => {

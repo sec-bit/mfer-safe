@@ -1,40 +1,40 @@
-package apetxpool
+package mfertxpool
 
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-type ApeTxPool struct {
+type MferTxPool struct {
 	txs         types.Transactions
 	execResults []error
 }
 
-func NewApeTxPool() *ApeTxPool {
-	pool := &ApeTxPool{
+func NewMferTxPool() *MferTxPool {
+	pool := &MferTxPool{
 		txs:         make(types.Transactions, 0),
 		execResults: make([]error, 0),
 	}
 	return pool
 }
 
-func (pool *ApeTxPool) AddTx(tx *types.Transaction, execResult error) {
+func (pool *MferTxPool) AddTx(tx *types.Transaction, execResult error) {
 	pool.txs = append(pool.txs, tx)
 	pool.execResults = append(pool.execResults, execResult)
 }
 
-func (pool *ApeTxPool) SetResults(execResults []error) {
+func (pool *MferTxPool) SetResults(execResults []error) {
 	pool.execResults = execResults
 }
 
-func (pool *ApeTxPool) Reset() (n int) {
+func (pool *MferTxPool) Reset() (n int) {
 	n = len(pool.txs)
 	pool.txs = make(types.Transactions, 0)
 	pool.execResults = make([]error, 0)
 	return
 }
 
-func (pool *ApeTxPool) RemoveTxByHash(txHash common.Hash) {
+func (pool *MferTxPool) RemoveTxByHash(txHash common.Hash) {
 	if len(pool.txs) < 1 {
 		return
 	}
@@ -54,11 +54,11 @@ func (pool *ApeTxPool) RemoveTxByHash(txHash common.Hash) {
 	pool.execResults = append(resHead, resTail...)
 }
 
-func (pool *ApeTxPool) GetPoolTxs() (types.Transactions, []error) {
+func (pool *MferTxPool) GetPoolTxs() (types.Transactions, []error) {
 	return pool.txs, pool.execResults
 }
 
-func (pool *ApeTxPool) GetTransactionByHash(txHash common.Hash) (int, *types.Transaction) {
+func (pool *MferTxPool) GetTransactionByHash(txHash common.Hash) (int, *types.Transaction) {
 	for i, tx := range pool.txs {
 		if tx.Hash() == txHash {
 			return i, tx

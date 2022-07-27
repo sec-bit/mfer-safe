@@ -1,10 +1,10 @@
 #!/bin/bash
 
 ROOT_DIR=$(pwd)
-cd ape-node/cmd/ape-node
-echo "Building ape-node"
+cd mfer-node/cmd/mfer-node
+echo "Building mfer-node"
 TRIPLE=$(rustc -Vv | grep host | cut -f2 -d' ')
-go build -o $ROOT_DIR/desktop-tauri/src-tauri/bin/ape-node-$TRIPLE
+go build -o $ROOT_DIR/desktop-tauri/src-tauri/bin/mfer-node-$TRIPLE
 cd $ROOT_DIR
 
 git submodule update --init --recursive

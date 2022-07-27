@@ -2,8 +2,8 @@
 
 import { invoke } from "@tauri-apps/api/tauri";
 
-export async function getApeNodeArgs() {
-  const args = await invoke("get_ape_node_args");
+export async function getMferNodeArgs() {
+  const args = await invoke("get_mfer_node_args");
   return args;
 }
 export async function docall(cmd, params) {
@@ -13,7 +13,7 @@ export async function docall(cmd, params) {
     method: cmd,
     params: params,
   };
-  var args = await getApeNodeArgs();
+  var args = await getMferNodeArgs();
   console.log("RPC:", args.listen_host_port);
   var rpcURL = "http://" + args.listen_host_port;
   var ret = fetch(rpcURL, {

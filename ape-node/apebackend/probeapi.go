@@ -1,4 +1,4 @@
-package apebackend
+package mferbackend
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"log"
 	"math/big"
 
-	"github.com/dynm/ape-safer/apetracer"
+	"github.com/dynm/mfer-safe/mfertracer"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core"
@@ -15,7 +15,7 @@ import (
 )
 
 type ProbeAPI struct {
-	b *ApeBackend
+	b *MferBackend
 }
 
 func (p *ProbeAPI) RunTxWithDifferentContext(ctx context.Context, txHash common.Hash) (interface{}, error) {
@@ -45,7 +45,7 @@ func (p *ProbeAPI) RunTxWithDifferentContext(ctx context.Context, txHash common.
 
 	txContext := core.NewEVMTxContext(msg)
 
-	tracer := apetracer.NewKeccakTracer()
+	tracer := mfertracer.NewKeccakTracer()
 	vmCfg := vm.Config{
 		Debug:  true,
 		Tracer: tracer,

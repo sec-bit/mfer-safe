@@ -1,4 +1,4 @@
-package apeevm
+package mferevm
 
 import (
 	"bytes"
@@ -19,9 +19,9 @@ import (
 	"github.com/ethereum/go-ethereum/eth/tracers"
 	"github.com/kataras/golog"
 
-	"github.com/dynm/ape-safer/apesigner"
-	"github.com/dynm/ape-safer/apestate"
-	"github.com/dynm/ape-safer/constant"
+	"github.com/dynm/mfer-safe/constant"
+	"github.com/dynm/mfer-safe/mfersigner"
+	"github.com/dynm/mfer-safe/mferstate"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -33,14 +33,14 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type ApeEVM struct {
+type MferEVM struct {
 	ctx        context.Context
 	RpcClient  *rpc.Client
 	Conn       *ethclient.Client
 	SelfClient *rpc.Client
 	SelfConn   *ethclient.Client
 
-	StateDB             *apestate.OverlayStateDB
+	StateDB             *mferstate.OverlayStateDB
 	keyCacheFilePath    string
 	batchSize           int
 	vmContext           vm.BlockContext
@@ -54,8 +54,8 @@ type ApeEVM struct {
 	tracer              vm.Tracer
 }
 
-func NewApeEVM(rawurl string, impersonatedAccount common.Address, keyCacheFilePath string, batchSize int) *ApeEVM {
-	apeEVM := &ApeEVM{}
+func NewMferEVM(rawurl string, impersonatedAccount common.Address, keyCacheFilePath string, batchSize int) *MferEVM {
+	mferEVM := &MferEVM{}
 	splittedRawUrl := strings.Split(rawurl, "@")
 	var specificBlock *int
 	if len(splittedRawUrl) > 1 {
@@ -76,15 +76,15 @@ DIAL:
 		time.Sleep(time.Second * 3)
 		goto DIAL
 	}
-	apeEVM.ctx = ctx
-	apeEVM.RpcClient = RpcClient
-	apeEVM.Conn = ethclient.NewClient(RpcClient)
-	apeEVM.callMutex = &sync.RWMutex{}
-	apeEVM.stateLock = &sync.RWMutex{}
-	apeEVM.impersonatedAccount = impersonatedAccount
-	apeEVM.keyCacheFilePath = keyCacheFilePath
-	apeEVM.batchSize = batchSize
-	err = apeEVM.Prepare(specificBlock)
+	mferEVM.ctx = ctx
+	mferEVM.RpcClient = RpcClient
+	mferEVM.Conn = ethclient.NewClient(RpcClient)
+	mferEVM.callMutex = &sync.RWMutex{}
+	mferEVM.stateLock = &sync.RWMutex{}
+	mferEVM.impersonatedAccount = impersonatedAccount
+	mferEVM.keyCacheFilePath = keyCacheFilePath
+	mferEVM.batchSize = batchSize
+	err = mferEVM.Prepare(specificBlock)
 	if err != nil {
 		golog.Errorf("Prepare error: %v", err)
 		time.Sleep(time.Second)
@@ -92,23 +92,23 @@ DIAL:
 	}
 
 	if specificBlock == nil {
-		go apeEVM.updatePendingBN()
+		go mferEVM.updatePendingBN()
 	} else {
 		golog.Infof("Using specific block %d, auto update block context disabled", *specificBlock)
 	}
 
-	return apeEVM
+	return mferEVM
 }
 
-func (a *ApeEVM) StateLock() {
+func (a *MferEVM) StateLock() {
 	a.stateLock.Lock()
 }
 
-func (a *ApeEVM) StateUnlock() {
+func (a *MferEVM) StateUnlock() {
 	a.stateLock.Unlock()
 }
 
-func (a *ApeEVM) GetLatestBlockHeader() *types.Header {
+func (a *MferEVM) GetLatestBlockHeader() *types.Header {
 	var raw json.RawMessage
 	err := a.RpcClient.CallContext(a.ctx, &raw, "eth_getBlockByNumber", "latest", false)
 	if err != nil {
@@ -126,7 +126,7 @@ func (a *ApeEVM) GetLatestBlockHeader() *types.Header {
 
 	return &head
 }
-func (a *ApeEVM) ResetState() {
+func (a *MferEVM) ResetState() {
 	lastBlockHeader := a.GetLatestBlockHeader()
 	if lastBlockHeader == nil {
 		return
@@ -136,11 +136,11 @@ func (a *ApeEVM) ResetState() {
 	a.gasPool.AddGas(lastBlockHeader.GasLimit)
 }
 
-func (a *ApeEVM) ChainID() *big.Int {
+func (a *MferEVM) ChainID() *big.Int {
 	return a.chainConfig.ChainID
 }
 
-func (a *ApeEVM) Prepare(bn *int) error {
+func (a *MferEVM) Prepare(bn *int) error {
 	a.chainConfig = core.DefaultGenesisBlock().Config
 	chainID, err := a.Conn.ChainID(a.ctx)
 	if err != nil {
@@ -164,7 +164,7 @@ func (a *ApeEVM) Prepare(bn *int) error {
 		} else {
 			blockNumber = *bn
 		}
-		a.StateDB = apestate.NewOverlayStateDB(a.RpcClient, blockNumber, a.keyCacheFilePath, a.batchSize)
+		a.StateDB = mferstate.NewOverlayStateDB(a.RpcClient, blockNumber, a.keyCacheFilePath, a.batchSize)
 		a.StateDB.InitState(nil)
 	}
 	a.StateDB.InitFakeAccounts()
@@ -195,27 +195,27 @@ func (a *ApeEVM) Prepare(bn *int) error {
 	return nil
 }
 
-func (a *ApeEVM) GetChainConfig() params.ChainConfig {
+func (a *MferEVM) GetChainConfig() params.ChainConfig {
 	return *a.chainConfig
 }
 
-func (a *ApeEVM) SetTimeDelta(delta uint64) {
+func (a *MferEVM) SetTimeDelta(delta uint64) {
 	a.timeDelta = delta
 }
 
-func (a *ApeEVM) GetTimeDelta() uint64 {
+func (a *MferEVM) GetTimeDelta() uint64 {
 	return a.timeDelta
 }
 
-func (a *ApeEVM) SetBlockNumberDelta(delta uint64) {
+func (a *MferEVM) SetBlockNumberDelta(delta uint64) {
 	a.blockNumberDelta = delta
 }
 
-func (a *ApeEVM) GetBlockNumberDelta() uint64 {
+func (a *MferEVM) GetBlockNumberDelta() uint64 {
 	return a.blockNumberDelta
 }
 
-func (a *ApeEVM) setVMContext() {
+func (a *MferEVM) setVMContext() {
 	lastBlockHeader := a.GetLatestBlockHeader()
 	if lastBlockHeader == nil {
 		return
@@ -227,7 +227,7 @@ func (a *ApeEVM) setVMContext() {
 	a.vmContext.GasLimit = lastBlockHeader.GasLimit
 }
 
-func (a *ApeEVM) SetVMContextByBlock(block *types.Block) {
+func (a *MferEVM) SetVMContextByBlock(block *types.Block) {
 	header := block.Header()
 	a.vmContext.BlockNumber.SetInt64(int64(header.Number.Uint64()))
 	a.vmContext.Time.SetInt64(int64(header.Time + a.timeDelta))
@@ -235,11 +235,11 @@ func (a *ApeEVM) SetVMContextByBlock(block *types.Block) {
 	a.vmContext.GasLimit = header.GasLimit
 }
 
-func (a *ApeEVM) GetVMContext() vm.BlockContext {
+func (a *MferEVM) GetVMContext() vm.BlockContext {
 	return a.vmContext
 }
 
-func (a *ApeEVM) updatePendingBN() {
+func (a *MferEVM) updatePendingBN() {
 	headerChan := make(chan *types.Header)
 	ticker5Sec := time.NewTicker(time.Second * 5)
 	tickerCheckMissingTireNode := time.NewTicker(time.Second * 10)
@@ -276,11 +276,11 @@ func (a *ApeEVM) updatePendingBN() {
 			if err != nil && strings.Contains(err.Error(), "missing trie node") {
 				golog.Warn("InitState (missing trie node)")
 				// a.StateDB.InitState()
-				a.SelfClient.Call(nil, "ape_reExecTxPool")
+				a.SelfClient.Call(nil, "mfer_reExecTxPool")
 			} else if balance.Sign() == 0 { //some node will not tell us missing trie node
 				golog.Warn("InitState (0x0000...0000 balance is zero)")
 				// a.StateDB.InitState()
-				a.SelfClient.Call(nil, "ape_reExecTxPool")
+				a.SelfClient.Call(nil, "mfer_reExecTxPool")
 			}
 
 		case <-ticker5Sec.C:
@@ -300,15 +300,15 @@ var (
 	blockHash = crypto.Keccak256Hash([]byte("fake block hash"))
 )
 
-func (a *ApeEVM) SetTracer(t vm.Tracer) {
+func (a *MferEVM) SetTracer(t vm.Tracer) {
 	a.tracer = t
 }
 
-func (a *ApeEVM) TxToMessage(tx *types.Transaction) types.Message {
+func (a *MferEVM) TxToMessage(tx *types.Transaction) types.Message {
 	v, r, s := tx.RawSignatureValues()
 	var signer types.Signer
-	if v.Uint64() == 1 && bytes.Equal(s.Bytes(), constant.APESIGNER_S.Bytes()) && r != nil {
-		signer = apesigner.NewSigner(a.ChainID().Int64())
+	if v.Uint64() == 1 && bytes.Equal(s.Bytes(), constant.MFERSIGNER_S.Bytes()) && r != nil {
+		signer = mfersigner.NewSigner(a.ChainID().Int64())
 	} else {
 		signer = types.NewLondonSigner(a.ChainID())
 	}
@@ -316,19 +316,19 @@ func (a *ApeEVM) TxToMessage(tx *types.Transaction) types.Message {
 	return msg
 }
 
-func (a *ApeEVM) WarmUpCache(txs types.Transactions, stateDB *apestate.OverlayStateDB) {
+func (a *MferEVM) WarmUpCache(txs types.Transactions, stateDB *mferstate.OverlayStateDB) {
 	wg := sync.WaitGroup{}
 	txCh := make(chan *types.Transaction, 100)
 	for i := 0; i < 20; i++ {
 		wg.Add(1)
-		go func(db *apestate.OverlayStateDB) {
+		go func(db *mferstate.OverlayStateDB) {
 			defer wg.Done()
 			for tx := range txCh {
 				msg := a.TxToMessage(tx)
 				stateDB := db.CloneFromRoot()
 				gp := new(core.GasPool)
 				gp.AddGas(math.MaxUint64)
-				// stateDB.(*apestate.OverlayStateDB).SetCodeHash(msg.From(), common.Hash{})
+				// stateDB.(*mferstate.OverlayStateDB).SetCodeHash(msg.From(), common.Hash{})
 				txContext := core.NewEVMTxContext(msg)
 				evm := vm.NewEVM(a.vmContext, txContext, stateDB, a.chainConfig, vm.Config{})
 				stateDB.StartLogCollection(tx.Hash(), blockHash)
@@ -343,7 +343,7 @@ func (a *ApeEVM) WarmUpCache(txs types.Transactions, stateDB *apestate.OverlaySt
 	wg.Wait()
 }
 
-func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB, config *tracers.TraceConfig) (execResults []error) {
+func (a *MferEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB, config *tracers.TraceConfig) (execResults []error) {
 	execResults = make([]error, len(txs))
 	var (
 		gasUsed = uint64(0)
@@ -394,7 +394,7 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB, config *
 			tracer = vm.NewStructLogger(config.LogConfig)
 		}
 		msg := a.TxToMessage(tx)
-		stateDB.(*apestate.OverlayStateDB).SetCodeHash(msg.From(), common.Hash{})
+		stateDB.(*mferstate.OverlayStateDB).SetCodeHash(msg.From(), common.Hash{})
 		// log.Printf("From: %s, To: %s, Nonce: %d, GasPrice: %d, Gas: %d, Hash: %s", msg.From(), msg.To(), msg.Nonce(), msg.GasPrice(), msg.Gas(), tx.Hash())
 
 		txContext := core.NewEVMTxContext(msg)
@@ -407,12 +407,12 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB, config *
 			Tracer: tracer,
 		})
 
-		stateDB.(*apestate.OverlayStateDB).StartLogCollection(tx.Hash(), blockHash)
+		stateDB.(*mferstate.OverlayStateDB).StartLogCollection(tx.Hash(), blockHash)
 		msgResult, err := core.ApplyMessage(evm, msg, a.gasPool)
 		// spew.Dump(msgResult)
 		if err != nil {
 			golog.Errorf("rejected tx: %s, from: %s, err: %v", tx.Hash().Hex(), msg.From(), err)
-			stateDB.(*apestate.OverlayStateDB).RevertToSnapshot(snapshot)
+			stateDB.(*mferstate.OverlayStateDB).RevertToSnapshot(snapshot)
 			continue
 		}
 		if len(msgResult.Revert()) > 0 || msgResult.Err != nil {
@@ -447,21 +447,21 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB, config *
 			golog.Error(err)
 		}
 
-		txExecutionLogs := stateDB.(*apestate.OverlayStateDB).GetLogs(tx.Hash())
+		txExecutionLogs := stateDB.(*mferstate.OverlayStateDB).GetLogs(tx.Hash())
 		traceLogs := &types.Log{
-			Address: common.HexToAddress("0xa9e5afe700000000a9e5afe700000000a9e5afe7"),
+			Address: common.HexToAddress("0x3fe75afe000000003fe75afe000000003fe75afe"),
 			Topics:  []common.Hash{crypto.Keccak256Hash([]byte("TRACE"))},
 			Data:    traceResult,
 		}
 		receipt.Logs = append(txExecutionLogs, traceLogs)
 		receipt.TransactionIndex = uint(txIndex)
 		// spew.Dump(receipt)
-		stateDB.(*apestate.OverlayStateDB).AddLog(traceLogs)
-		stateDB.(*apestate.OverlayStateDB).FinishLogCollection()
+		stateDB.(*mferstate.OverlayStateDB).AddLog(traceLogs)
+		stateDB.(*mferstate.OverlayStateDB).FinishLogCollection()
 
-		stateDB.(*apestate.OverlayStateDB).AddReceipt(tx.Hash(), receipt)
-		// log.Printf("exec final depth: %d, snapshot revision id: %d", stateDB.(*apestate.OverlayStateDB).GetOverlayDepth(), snapshot)
-		// stateDB.(*apestate.OverlayStateDB).MergeTo(1)
+		stateDB.(*mferstate.OverlayStateDB).AddReceipt(tx.Hash(), receipt)
+		// log.Printf("exec final depth: %d, snapshot revision id: %d", stateDB.(*mferstate.OverlayStateDB).GetOverlayDepth(), snapshot)
+		// stateDB.(*mferstate.OverlayStateDB).MergeTo(1)
 		txIndex++
 
 		// writer.Write(traceResult)
@@ -471,7 +471,7 @@ func (a *ApeEVM) ExecuteTxs(txs types.Transactions, stateDB vm.StateDB, config *
 	return
 }
 
-func (a *ApeEVM) DoCall(msg *types.Message, debug bool, stateDB vm.StateDB) (*core.ExecutionResult, error) {
+func (a *MferEVM) DoCall(msg *types.Message, debug bool, stateDB vm.StateDB) (*core.ExecutionResult, error) {
 	txContext := core.NewEVMTxContext(msg)
 
 	// a.callMutex.Lock()
@@ -483,7 +483,7 @@ func (a *ApeEVM) DoCall(msg *types.Message, debug bool, stateDB vm.StateDB) (*co
 		Tracer: a.tracer,
 	}
 
-	stateDB.(*apestate.OverlayStateDB).SetCodeHash(msg.From(), common.Hash{})
+	stateDB.(*mferstate.OverlayStateDB).SetCodeHash(msg.From(), common.Hash{})
 	evm := vm.NewEVM(a.vmContext, txContext, stateDB, a.chainConfig, vmCfg)
 
 	gasPool := new(core.GasPool).AddGas(math.MaxUint64)

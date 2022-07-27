@@ -40,7 +40,7 @@ function TraceView() {
             setEvents(txEvents);
             if (
               !traceLog ||
-              traceLog.address !== "0xa9e5afe700000000a9e5afe700000000a9e5afe7"
+              traceLog.address !== "0x3fe75afe000000003fe75afe000000003fe75afe"
             ) {
               console.log("trace not found");
               setCallTrace({ err: "Trace not found" });

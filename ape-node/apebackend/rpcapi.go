@@ -1,4 +1,4 @@
-package apebackend
+package mferbackend
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"math/big"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/dynm/ape-safer/apesigner"
-	"github.com/dynm/ape-safer/apetracer"
+	"github.com/dynm/mfer-safe/mfersigner"
+	"github.com/dynm/mfer-safe/mfertracer"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
@@ -17,7 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-func GetEthAPIs(b *ApeBackend) []rpc.API {
+func GetEthAPIs(b *MferBackend) []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "eth",
@@ -44,9 +44,9 @@ func GetEthAPIs(b *ApeBackend) []rpc.API {
 			Public:    true,
 		},
 		{
-			Namespace: "ape",
+			Namespace: "mfer",
 			Version:   "1.0",
-			Service:   NewApeActionAPI(b),
+			Service:   NewMferActionAPI(b),
 			Public:    true,
 		},
 		{
@@ -59,11 +59,11 @@ func GetEthAPIs(b *ApeBackend) []rpc.API {
 }
 
 type EthAPI struct {
-	b *ApeBackend
+	b *MferBackend
 }
 
 type AuxAPI struct {
-	b *ApeBackend
+	b *MferBackend
 }
 
 func (s *AuxAPI) Version() string {
@@ -124,7 +124,7 @@ func (s *EthAPI) EstimateGas(ctx context.Context, args TransactionArgs, blockNrO
 	if err != nil {
 		return 0, err
 	}
-	tracer := &apetracer.KeccakTracer{}
+	tracer := &mfertracer.KeccakTracer{}
 
 	// tracer, err := tracers.New("callTracer", new(tracers.Context))
 	// if err != nil {
@@ -154,7 +154,7 @@ func (s *EthAPI) GetBalance(ctx context.Context, address common.Address, blockNr
 	state := s.b.EVM.StateDB
 
 	if state == nil {
-		return nil, fmt.Errorf("ape state not found")
+		return nil, fmt.Errorf("mfer state not found")
 	}
 	return (*hexutil.Big)(state.GetBalance(address)), nil
 }
@@ -162,7 +162,7 @@ func (s *EthAPI) GetBalance(ctx context.Context, address common.Address, blockNr
 func (s *EthAPI) GetCode(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (hexutil.Bytes, error) {
 	state := s.b.EVM.StateDB
 	if state == nil {
-		return nil, fmt.Errorf("ape state not found")
+		return nil, fmt.Errorf("mfer state not found")
 	}
 	return (hexutil.Bytes)(state.GetCode(address)), nil
 }
@@ -191,7 +191,7 @@ func (s *EthAPI) SendTransaction(ctx context.Context, args TransactionArgs) (com
 	nonce := s.b.EVM.StateDB.GetNonce(*from)
 	args.Nonce = (*hexutil.Uint64)(&nonce)
 
-	signer := apesigner.NewSigner(s.b.EVM.ChainID().Int64())
+	signer := mfersigner.NewSigner(s.b.EVM.ChainID().Int64())
 
 	spew.Dump(args)
 
@@ -288,7 +288,7 @@ func (s *EthAPI) GetBlockByNumber(ctx context.Context, number rpc.BlockNumber, f
 	}
 
 	response["miner"] = common.HexToAddress("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-	response["totalDifficulty"] = "0xcafebabe0a9e5afe"
+	response["totalDifficulty"] = "0xcafebabe3fe75afe"
 	return response, nil
 
 	// _ = block

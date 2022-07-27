@@ -1,4 +1,4 @@
-module github.com/dynm/ape-safer
+module github.com/dynm/mfer-safe
 
 go 1.17
 

@@ -1,4 +1,4 @@
-package apebackend
+package mferbackend
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/dynm/ape-safer/apetracer"
+	"github.com/dynm/mfer-safe/mfertracer"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -75,7 +75,7 @@ func FormatLogs(logs []vm.StructLog) []StructLogRes {
 }
 
 type DebugAPI struct {
-	b *ApeBackend
+	b *MferBackend
 }
 
 func (s *DebugAPI) TraceTransaction(ctx context.Context, txHash common.Hash, config *tracers.TraceConfig) (interface{}, error) {
@@ -226,7 +226,7 @@ func (s *DebugAPI) StorageRangeAt(ctx context.Context, blockHash common.Hash, tx
 	// Run the transaction with tracing enabled.
 	stateDB := s.b.EVM.StateDB.CloneFromRoot()
 	stateDB.InitFakeAccounts()
-	tracer := apetracer.NewStateTracer()
+	tracer := mfertracer.NewStateTracer()
 	s.b.EVM.SetTracer(tracer)
 
 	for _, tx := range txs {

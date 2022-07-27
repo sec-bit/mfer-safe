@@ -19,7 +19,7 @@ import eventSignatures from "./eventSignatures.json";
 
 
 const simulate = (setTrace, participants) => {
-  docall("ape_simulateSafeExec", [participants])
+  docall("mfer_simulateSafeExec", [participants])
     .then((res) => res.json())
     .then(
       (result) => {
@@ -63,7 +63,7 @@ function SimulateView() {
   const [overridedExecCallData, setOverridedExecCallData] = useState("");
 
   useEffect(() => {
-    docall("ape_getSafeOwnersAndThreshold", [])
+    docall("mfer_getSafeOwnersAndThreshold", [])
       .then((res) => res.json())
       .then((result) => {
         console.log(result);
