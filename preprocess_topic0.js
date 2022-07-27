@@ -9,6 +9,6 @@ sigHashes.forEach((name) => {
 });
 
 fs.writeFileSync(
-  path.join("desktop-tauri", "src", "eventSignatures.json"),
+  path.join("mfer-safe-desktop-app", "src", "eventSignatures.json"),
   JSON.stringify(processedSignature)
 );
