@@ -1,6 +1,0 @@
-[submodule "topic0"]
-	path = topic0
-	url = https://github.com/wmitsuda/topic0
-[submodule "mfer-node"]
-	path = mfer-node
-	url = git@github.com:sec-bit/mfer-node.git
