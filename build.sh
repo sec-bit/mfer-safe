@@ -1,7 +1,7 @@
 #!/bin/bash
 
 git submodule update --init --recursive
-git submodule foreach --recursive git checkout .
+git submodule foreach --recursive git checkout main
 
 ROOT_DIR=$(pwd)
 cd mfer-node/cmd/mfer-node
