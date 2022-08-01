@@ -29,7 +29,7 @@ jobs:
         $TRIPLE = "x86_64-pc-windows-msvc"
         env
         rustc -Vv | grep host | cut -f2 -d' '
-        cd mfer-node/cmd/mfer-node
+        # cd mfer-node/cmd/mfer-node
         echo "Building mfer-node-$TRIPLE"
         $DEST = "$GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin/mfer-node-$TRIPLE"
         echo "build dest: $DEST"
