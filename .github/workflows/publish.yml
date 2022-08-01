@@ -43,9 +43,11 @@ jobs:
       if: matrix.platform == 'windows-latest'
       run: |
         $TRIPLE = (rustc -Vv | grep host | cut -f2 -d' ')
+        $EXECUTABLE = "mfer-node-$TRIPLE.exe"
+        $DEST = "$env:GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin/$EXECUTABLE"
         cd mfer-node/cmd/mfer-node
         echo "Building mfer-node-$TRIPLE"
-        go build -o $GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin/mfer-node-$TRIPLE.exe
+        go build -o $DEST
     - name: build frontend
       working-directory: ./mfer-safe-desktop-app
       run: |
