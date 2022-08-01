@@ -1,0 +1,37 @@
+name: "test-windows-build"
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  publish-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+    # - uses: actions/checkout@v2
+    #   with:
+    #     token: ${{ secrets.MFER_NODE_PAT }}
+    #     submodules: recursive
+    # - name: install Rust stable
+    #   uses: actions-rs/toolchain@v1
+    #   with:
+    #     toolchain: stable
+    # - name: Setup Go environment
+    #   uses: actions/setup-go@v3.2.1
+    - name: build mfer-node (windows only)
+      if: matrix.platform == 'windows-latest'
+      run: |
+        $TRIPLE = "x86_64-pc-windows-msvc"
+        env
+        rustc -Vv | grep host | cut -f2 -d' '
+        cd mfer-node/cmd/mfer-node
+        echo "Building mfer-node-$TRIPLE"
+        $DEST = $GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin/mfer-node-$TRIPLE
+        echo "build dest: $DEST"
+        # go build -o $GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin/mfer-node-$TRIPLE
+        # dir $GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin
