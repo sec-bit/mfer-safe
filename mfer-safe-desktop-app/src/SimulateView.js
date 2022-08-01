@@ -69,9 +69,9 @@ function SimulateView() {
         console.log(result);
         setOwners(result.result);
         var checked = {};
-        result.result.owners.map((owner) => {
-          checked[owner] = false;
-        });
+        result.result.owners.map((owner) => (
+          checked[owner] = false
+        ));
         setChecked(checked);
       })
       .catch((error) => {
@@ -188,7 +188,7 @@ function SimulateView() {
               label={participant}
               key={idx}
               helperText="Signature override"
-              value={overrideSignature[participant] ||""}
+              value={overrideSignature[participant] || ""}
               onChange={(e) => {
                 var sig = e.target.value;
                 var newOverridedSig = { ...overrideSignature, [participant]: sig };
