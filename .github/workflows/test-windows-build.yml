@@ -31,7 +31,7 @@ jobs:
         rustc -Vv | grep host | cut -f2 -d' '
         cd mfer-node/cmd/mfer-node
         echo "Building mfer-node-$TRIPLE"
-        $DEST = $GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin/mfer-node-$TRIPLE
+        $DEST = "$GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin/mfer-node-$TRIPLE"
         echo "build dest: $DEST"
         # go build -o $GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin/mfer-node-$TRIPLE
         # dir $GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin
