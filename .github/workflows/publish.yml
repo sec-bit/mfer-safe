@@ -45,7 +45,7 @@ jobs:
         $TRIPLE = (rustc -Vv | grep host | cut -f2 -d' ')
         cd mfer-node/cmd/mfer-node
         echo "Building mfer-node-$TRIPLE"
-        go build -o $GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin/mfer-node-$TRIPLE
+        go build -o $GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin/mfer-node-$TRIPLE.exe
     - name: build frontend
       working-directory: ./mfer-safe-desktop-app
       run: |
