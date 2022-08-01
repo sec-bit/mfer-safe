@@ -76,13 +76,13 @@ export default function SettingsView() {
       .then((result) => {
         setBlockNumberDelta(result.result);
       });
-  }, []);
 
-  docall("mfer_getTimeDelta", [])
-    .then((res) => res.json())
-    .then((result) => {
-      setBlockTimeDelta(result.result);
+    docall("mfer_getTimeDelta", [])
+      .then((res) => res.json())
+      .then((result) => {
+        setBlockTimeDelta(result.result);
     });
+  }, []);
 
   const saveRPCSettings = useCallback(() => {
     let args = {
