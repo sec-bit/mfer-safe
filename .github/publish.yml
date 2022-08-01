@@ -1,0 +1,63 @@
+name: "publish"
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  publish-tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        token: ${{ secrets.MFER_NODE_PAT }}
+        submodules: recursive
+    - name: Setup Go environment
+      uses: actions/setup-go@v3.2.1
+    - name: setup node
+      uses: actions/setup-node@v1
+      with:
+        node-version: 16
+    - name: install Rust stable
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+    - name: install dependencies (ubuntu only)
+      if: matrix.platform == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev webkit2gtk-4.0 libappindicator3-dev librsvg2-dev patchelf
+    - name: build mfer-node
+      if: matrix.platform != 'windows-latest'
+      run: |
+        export "TRIPLE=$(rustc -Vv | grep host | cut -f2 -d' ')"
+        cd mfer-node/cmd/mfer-node
+        echo "Building mfer-node-$TRIPLE"
+        go build -o $GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin/mfer-node-$TRIPLE
+    - name: build mfer-node (windows only)
+      if: matrix.platform == 'windows-latest'
+      run: |
+        $TRIPLE = (rustc -Vv | grep host | cut -f2 -d' ')
+        cd mfer-node/cmd/mfer-node
+        echo "Building mfer-node-$TRIPLE"
+        go build -o $GITHUB_WORKSPACE/mfer-safe-desktop-app/src-tauri/bin/mfer-node-$TRIPLE
+    - name: build frontend
+      working-directory: ./mfer-safe-desktop-app
+      run: |
+        npm i
+        npm run build
+    - uses: tauri-apps/tauri-action@v0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version
+        releaseName: "App v__VERSION__"
+        releaseBody: "See the assets to download this version and install."
+        releaseDraft: true
+        prerelease: false
+
