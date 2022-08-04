@@ -14,7 +14,11 @@ echo "Building topic0"
 node preprocess_topic0.js
 
 echo "Building 4bytes"
-node preprocess_4bytes.js
+echo "Due to too much signature files slow down computer, using Pre-built version instead"
+echo "Pre-build version's commit id: 5197eb52b81b8594b6c5d3de023e649bec9523ca"
+# You can build your own version by uncommenting the following lines
+# git clone https://github.com/ethereum-lists/4bytes
+# node preprocess_4bytes.js
 
 cd mfer-safe-desktop-app
 echo "Building desktop app"

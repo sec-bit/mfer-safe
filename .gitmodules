@@ -4,6 +4,3 @@
 [submodule "mfer-node"]
 	path = mfer-node
 	url = git@github.com:sec-bit/mfer-node.git
-[submodule "4bytes"]
-	path = 4bytes
-	url = https://github.com/ethereum-lists/4bytes.git
