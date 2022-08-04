@@ -3,19 +3,20 @@ import { Link } from "react-router-dom";
 import { docall } from "./utils.js";
 import Box from "@mui/material/Box";
 import { DataGrid } from "@mui/x-data-grid";
+import functionSignatures from "./functionSignatures.json";
 
 const columns = [
-  { field: "id", headerName: "Index", width: 70 },
-
+  { field: "id", headerName: "Index", width: 60 },
   {
     field: "pseudoTxHash",
-    headerName: "Txn Hash",
-    width: 350,
+    headerName: "Pseudo Tx Hash",
+    width: 300,
     renderCell: function (params) {
       return <Link to={"/trace/" + params.value}>{params.value}</Link>;
     },
   },
-  { field: "method", headerName: "Method", width: 200 },
+  { field: "method", headerName: "Method (Guessed)", width: 200 },
+  { field: "selector", headerName: "Selector", width: 100 },
   { field: "from", headerName: "From", width: 300 },
   { field: "to", headerName: "To", width: 300 },
   { field: "execResult", headerName: "Result", width: 500 },
@@ -29,7 +30,8 @@ const genRows = function (txs, abiDict) {
   var rows = txs.map((txdata) => ({
     id: txdata.idx,
     pseudoTxHash: txdata.pseudoTxHash,
-    method: abiDict[txdata.calldata],
+    selector:txdata.calldata.slice(0,10),
+    method: abiDict[txdata.calldata.slice(2,10)],
     from: txdata.from,
     to: txdata.to,
     execResult: txdata.execResult,
@@ -42,7 +44,9 @@ const updateTxList = function (setRows) {
     .then((res) => res.json())
     .then(
       (result) => {
-        setRows(genRows(result.result, {}));
+        var rows = genRows(result.result, functionSignatures);
+        console.log(rows)
+        setRows(rows);
       },
       (error) => {
         console.log(error);

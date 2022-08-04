@@ -1,7 +1,7 @@
 #!/bin/bash
 
 git submodule update --init --recursive
-git submodule foreach --recursive git checkout main
+# git submodule foreach --recursive git checkout main
 
 ROOT_DIR=$(pwd)
 cd mfer-node/cmd/mfer-node
@@ -12,6 +12,9 @@ cd $ROOT_DIR
 
 echo "Building topic0"
 node preprocess_topic0.js
+
+echo "Building 4bytes"
+node preprocess_4bytes.js
 
 cd mfer-safe-desktop-app
 echo "Building desktop app"
