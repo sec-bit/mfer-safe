@@ -64,8 +64,8 @@ function TraceView() {
   return (
     <div style={{ textAlign: "left" }}>
       <Fieldset legend="Event Logs">
-        {events.map((event) => {
-          return <AbiEventForm key={[event]} event={event} />;
+        {events.map((event, idx) => {
+          return <AbiEventForm key={idx} event={event} />;
         })}
       </Fieldset>
       <ReactJson

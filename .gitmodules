@@ -8,3 +8,4 @@
 [submodule "4bytes"]
 	path = 4bytes
 	url = https://github.com/ethereum-lists/4bytes.git
+	branch = master
