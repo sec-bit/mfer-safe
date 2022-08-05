@@ -34,7 +34,8 @@
     "web_accessible_resources": [
         {
             "resources": [
-                "script.js"
+                "redir.js",
+                "eip1193provider.js"
             ],
             "matches": [
                 "<all_urls>"
