@@ -90,7 +90,7 @@ impl ApeNodeArgs {
     fn load_config(&self, config_path: PathBuf) -> ApeNodeArgs {
         let default_config = ApeNodeArgs {
             impersonated_account: "0x0000000000000000000000000000000000000000".to_string(),
-            web3_rpc: "wss://mainnet.infura.io/ws/v3/547e677c41724f8fa8c4bfde1aecef20".to_string(),
+            web3_rpc: "https://rpc.ankr.com/eth".to_string(),
             listen_host_port: "127.0.0.1:10545".to_string(),
             key_cache_file_path: "".to_string(),
             log_file_path: "".to_string(),
