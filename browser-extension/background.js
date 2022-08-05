@@ -1,7 +1,14 @@
 const mfersafeSettings = { rpc: "http://localhost:10545" };
 
+chrome.storage.local.get(["rpcAddr"], function (result) {
+  var rpcAddr = result.rpcAddr || "http://localhost:10545";
+  console.log("rpcAddr init value: " + rpcAddr);
+  mfersafeSettings.rpc = rpcAddr;
+});
+
 chrome.storage.onChanged.addListener((changes, namespace) => {
-  mfersafeSettings.rpc = changes.key.newValue;
+  console.log("rpc changes from:", mfersafeSettings.rpc, "to:", changes.rpcAddr.newValue);
+  mfersafeSettings.rpc = changes.rpcAddr.newValue;
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
