@@ -1,12 +1,20 @@
+var s = document.createElement("script");
+s.src = chrome.runtime.getURL("redir.js");
+s.onload = function () {
+  this.remove();
+};
+(document.head || document.documentElement).appendChild(s);
+console.log("redir injected");
+
 chrome.storage.local.get(["inject"], function (result) {
   if (result.inject) {
-    console.log("require inject eip1193 provider");
     var s = document.createElement("script");
-    s.src = chrome.runtime.getURL("script.js");
+    s.src = chrome.runtime.getURL("eip1193provider.js");
     s.onload = function () {
       this.remove();
     };
     (document.head || document.documentElement).appendChild(s);
+    console.log("eip1193 provider injected");
   }
 });
 
