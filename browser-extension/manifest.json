@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "MferSafe",
     "description": "MferSafe's Browser extension",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "icons": {
         "128": "logo/128x128.png"
     },
