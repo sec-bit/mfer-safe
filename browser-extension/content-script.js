@@ -1,9 +1,14 @@
-var s = document.createElement("script");
-s.src = chrome.runtime.getURL("script.js");
-s.onload = function () {
-  this.remove();
-};
-(document.head || document.documentElement).appendChild(s);
+chrome.storage.local.get(["inject"], function (result) {
+  if (result.inject) {
+    console.log("require inject eip1193 provider");
+    var s = document.createElement("script");
+    s.src = chrome.runtime.getURL("script.js");
+    s.onload = function () {
+      this.remove();
+    };
+    (document.head || document.documentElement).appendChild(s);
+  }
+});
 
 window.addEventListener(
   "message",
