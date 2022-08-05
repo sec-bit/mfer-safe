@@ -7,6 +7,9 @@ chrome.storage.local.get(["rpcAddr"], function (result) {
 });
 
 chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (!changes.rpcAddr){
+    return;
+  }
   console.log("rpc changes from:", mfersafeSettings.rpc, "to:", changes.rpcAddr.newValue);
   mfersafeSettings.rpc = changes.rpcAddr.newValue;
 });
