@@ -20,8 +20,8 @@ Demo:
 
 ### How to use
 
-1. Install browser-extension
-2. launch MferSafe app
+1. [Install browser-extension](https://chrome.google.com/webstore/detail/mfersafe/ppkcjeilamojjbimmkbpkfknjccpflbh)
+2. Launch MferSafe app
 
 ### Screenshots
 
