@@ -20,8 +20,8 @@ Demo:
 
 ### How to use
 
-1. Install browser-extension
-2. launch MferSafe app
+1. [Install browser-extension](https://chrome.google.com/webstore/detail/mfersafe/ppkcjeilamojjbimmkbpkfknjccpflbh)
+2. Launch MferSafe app
 
 ### Screenshots
 
@@ -39,7 +39,7 @@ Demo:
 
 Apple Silicon macOS Prerequisite:
 
-`brew install pkg-config cairo libpng jpeg giflib`
+`brew install pkg-config cairo pango libpng jpeg giflib librsvg pixman`
 
 1. [Install tauri build environment](https://tauri.app/zh/v1/guides/getting-started/prerequisites)
 2. [Install golang](https://go.dev/doc/install)
