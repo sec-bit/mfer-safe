@@ -1,7 +1,10 @@
-import { React, useState, useCallback, useEffect,useMemo } from "react";
+import { React, useState, useCallback, useEffect, useMemo } from "react";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
+import FormGroup from '@mui/material/FormGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Checkbox from '@mui/material/Checkbox';
 import { getMferNodeArgs, docall } from "./utils.js";
 import SaveIcon from "@mui/icons-material/Save";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
@@ -23,9 +26,9 @@ function IconButtonTextField(props) {
       value={props.state}
       onChange={(e) => props.setState(e.target.value)}
       onKeyPress={(e) => {
-        if(e.key === "Enter"){props.onClick()}
+        if (e.key === "Enter") { props.onClick() }
       }
-    }
+      }
       label={props.label}
       InputProps={{
         endAdornment: (
@@ -52,6 +55,7 @@ export default function SettingsView() {
   const [blockNumberDelta, setBlockNumberDelta] = useState(0);
   const [blockTimeDelta, setBlockTimeDelta] = useState(0);
   const [keyCacheFilePath, setKeyCacheFilePath] = useState("");
+  const [addrRandomize, setAddrRandomize] = useState(false);
 
   useEffect(() => {
     getMferNodeArgs().then((args) => {
@@ -65,10 +69,10 @@ export default function SettingsView() {
     });
 
     // avoid Safari: "Fetch API cannot load due to access control checks" override after mfer-node is started
-    docall("eth_requestAccounts", [])
+    docall("mfer_impersonatedAccount", [])
       .then((res) => res.json())
       .then((result) => {
-        setImpersonatedAccount(ethers.utils.getAddress(result.result[0]));
+        setImpersonatedAccount(ethers.utils.getAddress(result.result));
       });
 
     docall("mfer_getBlockNumberDelta", [])
@@ -81,7 +85,14 @@ export default function SettingsView() {
       .then((res) => res.json())
       .then((result) => {
         setBlockTimeDelta(result.result);
-    });
+      });
+
+    docall("mfer_randAddrEnabled", [])
+      .then((res) => res.json())
+      .then((result) => {
+        setAddrRandomize(result.result);
+      });
+
   }, []);
 
   const saveRPCSettings = useCallback(() => {
@@ -105,7 +116,7 @@ export default function SettingsView() {
     batchSize,
   ]);
 
-  const provider = useMemo(()=>new ethers.providers.JsonRpcProvider("http://" + listenHostPort),[listenHostPort])
+  const provider = useMemo(() => new ethers.providers.JsonRpcProvider("http://" + listenHostPort), [listenHostPort])
 
   const impersonate = useCallback(() => {
     if (impersonatedAccount.endsWith(".eth")) {
@@ -135,6 +146,11 @@ export default function SettingsView() {
     docall("mfer_setTimeDelta", [Number(blockTimeDelta)]);
   }, [blockTimeDelta]);
 
+  const setEnableRandAddr = (e) => {
+    docall("mfer_toggleRandAddr", [e.target.checked]);
+    setAddrRandomize(e.target.checked);
+  };
+
   return (
     <Box
       component="div"
@@ -155,6 +171,13 @@ export default function SettingsView() {
         padding={2}
         width="520px"
       >
+        <FormGroup>
+          <FormControlLabel control={
+            <Checkbox
+              checked={addrRandomize}
+              onChange={setEnableRandAddr}
+            />} label="Randomize Address For Dapps" />
+        </FormGroup>
         <IconButtonTextField
           state={impersonatedAccount}
           setState={setImpersonatedAccount}
