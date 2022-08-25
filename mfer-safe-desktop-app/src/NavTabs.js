@@ -13,6 +13,7 @@ import SpeedDialIcon from "@mui/material/SpeedDialIcon";
 import SpeedDialAction from "@mui/material/SpeedDialAction";
 import ReplayIcon from "@mui/icons-material/Replay";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
+import ClearIcon from '@mui/icons-material/Clear';
 import TerminalIcon from "@mui/icons-material/Terminal";
 
 const actions = [
@@ -28,6 +29,13 @@ const actions = [
     name: "Clear TxPool",
     onClick: () => {
       docall("mfer_clearTxPool", []);
+    },
+  },
+  {
+    icon: <ClearIcon />,
+    name: "Clear Key Cache",
+    onClick: () => {
+      docall("mfer_clearKeyCache", []);
     },
   },
 ];

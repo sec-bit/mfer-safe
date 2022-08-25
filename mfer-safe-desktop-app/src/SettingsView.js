@@ -56,6 +56,7 @@ export default function SettingsView() {
   const [blockTimeDelta, setBlockTimeDelta] = useState(0);
   const [keyCacheFilePath, setKeyCacheFilePath] = useState("");
   const [addrRandomize, setAddrRandomize] = useState(false);
+  const [passthrough, setPassthrough] = useState(true);
 
   useEffect(() => {
     getMferNodeArgs().then((args) => {
@@ -93,6 +94,11 @@ export default function SettingsView() {
         setAddrRandomize(result.result);
       });
 
+    docall("mfer_passthroughEnabled", [])
+      .then((res) => res.json())
+      .then((result) => {
+        setPassthrough(result.result);
+      });
   }, []);
 
   const saveRPCSettings = useCallback(() => {
@@ -151,6 +157,11 @@ export default function SettingsView() {
     setAddrRandomize(e.target.checked);
   };
 
+  const setPassthroughFunc = (e) => {
+    docall("mfer_togglePassthrough", [e.target.checked]);
+    setPassthrough(e.target.checked);
+  };
+
   return (
     <Box
       component="div"
@@ -171,7 +182,12 @@ export default function SettingsView() {
         padding={2}
         width="520px"
       >
-        <FormGroup>
+        <FormGroup row>
+          <FormControlLabel control={
+            <Checkbox
+              checked={passthrough}
+              onChange={setPassthroughFunc}
+            />} label="Passthrough" />
           <FormControlLabel control={
             <Checkbox
               checked={addrRandomize}
