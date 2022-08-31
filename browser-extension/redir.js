@@ -66,3 +66,40 @@ window.fetch = async (...args) => {
   return fetchWeb3(requestBody);
 };
 
+// https://gilfink.medium.com/quick-tip-creating-an-xmlhttprequest-interceptor-1da23cf90b76
+let origXHRSend = window.XMLHttpRequest.prototype.send;
+window.XMLHttpRequest.prototype.send = function (args) {
+  if (args === undefined) {
+    return origXHRSend.apply(this, arguments);
+  }
+
+  try {
+    var parsed = JSON.parse(args);
+    if (
+      parsed.method === undefined ||
+      parsed.method.indexOf("eth_") < 0
+    ) {
+      return origXHRSend.apply(this, arguments);
+    }
+    fetchWeb3(parsed)
+      .then((response) => response.json())
+      .then((body) => {
+        // https://stackoverflow.com/a/28513219
+        Object.defineProperty(this, 'responseText', {
+          get: () => JSON.stringify(body),
+          set: (x) => console.log("set: ", x),
+          configurable: true
+        });
+        Object.defineProperty(this, 'readyState', {
+          get: () => 4,
+          set: (x) => console.log("set: ", x),
+          configurable: true
+        });
+        this.onreadystatechange();
+      });
+    return;
+  }
+  catch (e) {
+    return origXHRSend.apply(this, arguments);
+  }
+}
