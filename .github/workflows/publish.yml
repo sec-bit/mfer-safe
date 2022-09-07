@@ -15,7 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        token: ${{ secrets.MFER_NODE_PAT }}
         submodules: recursive
     - name: Setup Go environment
       uses: actions/setup-go@v3.2.1
