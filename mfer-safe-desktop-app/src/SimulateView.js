@@ -17,6 +17,9 @@ import Fieldset from "./FieldSet.js";
 
 import eventSignatures from "./eventSignatures.json";
 
+import BalanceOverview from "./BalanceOverview.js";
+import { loadTokenList } from "./processTokenTransfers.js"
+
 
 const simulate = (setTrace, participants) => {
   docall("mfer_simulateSafeExec", [participants])
@@ -61,6 +64,7 @@ function SimulateView() {
   const [participants, setParticipants] = useState([]);
   const [overrideSignature, setOverrideSignature] = useState({});
   const [overridedExecCallData, setOverridedExecCallData] = useState("");
+  const [tokenList, setTokenList] = useState({});
 
   useEffect(() => {
     docall("mfer_getSafeOwnersAndThreshold", [])
@@ -78,6 +82,10 @@ function SimulateView() {
         setOwners({ owners: [], threshold: -1 });
         console.log(error);
       });
+  }, []);
+
+  useEffect(() => {
+    setTokenList(loadTokenList());
   }, []);
 
   const handleChange = (event) => {
@@ -245,6 +253,7 @@ function SimulateView() {
           />
         </Stack>
       </Box>
+      <BalanceOverview events={callTrace.eventLogs} tokenList={tokenList}/>
       <Fieldset legend="Event Logs">
         {callTrace.eventLogs.map((event, idx) => {
           var eventName = eventSignatures[event.topics[0].slice(2)];

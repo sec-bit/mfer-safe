@@ -4,6 +4,9 @@ import { docall } from "./utils.js";
 import Box from "@mui/material/Box";
 import { DataGrid } from "@mui/x-data-grid";
 import functionSignatures from "./functionSignatures.json";
+import BalanceOverview from "./BalanceOverview.js";
+import { loadTokenList } from "./processTokenTransfers.js"
+
 
 const columns = [
   { field: "id", headerName: "Index", width: 60 },
@@ -39,14 +42,23 @@ const genRows = function (txs, abiDict) {
   return rows;
 };
 
-const updateTxList = function (setRows) {
+const updateTxList = function (setRows, setEvents) {
   docall("mfer_getTxs", [])
     .then((res) => res.json())
     .then(
       (result) => {
         var rows = genRows(result.result, functionSignatures);
-        console.log(rows)
         setRows(rows);
+      },
+      (error) => {
+        console.log(error);
+      }
+    );
+    docall("eth_getLogs", [{"blockhash":"0x445fd31bd4f3b47d5248cda491b447af5a0c4ed91b6dcd83ba0fb5e69526876d"}])
+    .then((res) => res.json())
+    .then(
+      (result) => {
+        setEvents(result.result);
       },
       (error) => {
         console.log(error);
@@ -56,13 +68,20 @@ const updateTxList = function (setRows) {
 
 export default function TxDataOverview() {
   const [rows, setRows] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [tokenList, setTokenList] = useState({});
   useEffect(() => {
-    updateTxList(setRows);
+    updateTxList(setRows, setEvents);
     const interval = setInterval(() => {
-      updateTxList(setRows);
+      updateTxList(setRows,setEvents);
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    setTokenList(loadTokenList());
+  }, []);
+
   return (
     <Box>
       <DataGrid
@@ -73,6 +92,7 @@ export default function TxDataOverview() {
         rowsPerPageOptions={[50]}
         checkboxSelection
       />
+      <BalanceOverview events={events} tokenList={tokenList}/>
     </Box>
   );
 }

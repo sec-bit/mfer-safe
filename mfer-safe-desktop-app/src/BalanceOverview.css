@@ -1,0 +1,32 @@
+/* Take from ethtx 
+ https://github.com/EthTx/ethtx_ce/blob/1c4eec6a4631fbc24029c1cc6633fdff3a3e9f73/ethtx_ce/app/frontend/static/ethtx.new.css#L59-L81
+*/
+
+h3 {
+    margin: 11px;
+}
+
+.table {
+    font-family: monospace;
+    margin-left: 11px;
+    border: solid 1px #bbbbbb;
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+.table thead th {
+    background-color: #ddd;
+    border: solid 1px #bbbbbb;
+    color: #444444;
+    padding: 3px 10px 3px 10px;
+    text-align: left;
+    text-shadow: 1px 1px 1px #fff;
+}
+
+.table tbody td {
+    border: solid 1px #bbbbbb;
+    color: #333;
+    padding: 3px 10px 3px 10px;
+    text-shadow: 1px 1px 1px #fff;
+    white-space: nowrap;
+}
