@@ -76,6 +76,7 @@ export function processEvents(events) {
                         obj["tokenID"] = tokenID.shr(128).eq(0) ? tokenID.toString() : event.topics[3]
                         transferERC721Events.push(obj);
                         break;
+                    default:
                 }
                 break;
             case namedtopics.Approval:
@@ -99,6 +100,7 @@ export function processEvents(events) {
                         obj["tokenID"] = tokenID.shr(128).eq(0) ? tokenID.toString() : event.topics[3]
                         approvalERC721Events.push(obj);
                         break;
+                    default:
                 }
                 break;
             case namedtopics.ApprovalForAll:
@@ -110,6 +112,7 @@ export function processEvents(events) {
                 }
                 approvalForAllEvents.push(obj);
                 break;
+            default:
         }
     }
     return processedEvents;
