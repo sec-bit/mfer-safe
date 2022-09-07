@@ -27,7 +27,7 @@ export function processEvents(events) {
     var transferERC20Events = [];
     var transferERC721Events = [];
     var userTokenBalance = {};
-    var callValue = [];
+    // var callValue = [];
     var processedEvents = {
         "approvalERC20Events": approvalERC20Events,
         "approvalERC721Events": approvalERC721Events,
