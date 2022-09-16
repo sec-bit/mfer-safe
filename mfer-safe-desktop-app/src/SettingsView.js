@@ -16,6 +16,7 @@ import LanIcon from "@mui/icons-material/Lan";
 import MapIcon from "@mui/icons-material/Map";
 import ConfirmationNumberIcon from "@mui/icons-material/ConfirmationNumber";
 import MoreTimeIcon from "@mui/icons-material/MoreTime";
+import FingerprintIcon from '@mui/icons-material/Fingerprint';
 import { ethers } from "ethers";
 import { invoke } from "@tauri-apps/api/tauri";
 
@@ -54,6 +55,7 @@ export default function SettingsView() {
   const [batchSize, setBatchSize] = useState(100);
   const [blockNumberDelta, setBlockNumberDelta] = useState(0);
   const [blockTimeDelta, setBlockTimeDelta] = useState(0);
+  const [chainID, setChainID] = useState("0x0");
   const [keyCacheFilePath, setKeyCacheFilePath] = useState("");
   const [addrRandomize, setAddrRandomize] = useState(false);
   const [passthrough, setPassthrough] = useState(true);
@@ -86,6 +88,11 @@ export default function SettingsView() {
       .then((res) => res.json())
       .then((result) => {
         setBlockTimeDelta(result.result);
+      });
+    docall("eth_chainId", [])
+      .then((res) => res.json())
+      .then((result) => {
+        setChainID(result.result);
       });
 
     docall("mfer_randAddrEnabled", [])
@@ -152,6 +159,10 @@ export default function SettingsView() {
     docall("mfer_setTimeDelta", [Number(blockTimeDelta)]);
   }, [blockTimeDelta]);
 
+  const setCID = useCallback(() => {
+    docall("mfer_overrideChainID", [chainID]);
+  }, [chainID]);
+
   const setEnableRandAddr = (e) => {
     docall("mfer_toggleRandAddr", [e.target.checked]);
     setAddrRandomize(e.target.checked);
@@ -216,6 +227,15 @@ export default function SettingsView() {
             icon={ViewModuleIcon}
             onClick={() => setBatch()}
           />
+          <IconButtonTextField
+            state={chainID}
+            setState={setChainID}
+            label="Override ChainID (hex with 0x prefix)"
+            icon={FingerprintIcon}
+            onClick={() => setCID()}
+          />
+        </Stack>
+        <Stack direction="row" width="100%">
           <IconButtonTextField
             state={blockNumberDelta}
             setState={setBlockNumberDelta}
