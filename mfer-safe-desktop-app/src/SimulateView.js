@@ -168,7 +168,7 @@ function SimulateView() {
                 simulate(setCallTrace, participants);
               }}
             >
-              🙉Simulate
+              Build and Simulate ⛑️
             </Button>
           </div>
           <TextField
@@ -193,10 +193,10 @@ function SimulateView() {
           {participants.map((participant, idx) => {
             // console.log(participant);
             return <TextField
-              label={participant}
+              label={"Address: " + participant}
               key={idx}
               helperText="Signature override"
-              value={overrideSignature[participant] || ""}
+              value={ overrideSignature[participant] || ""}
               onChange={(e) => {
                 var sig = e.target.value;
                 var newOverridedSig = { ...overrideSignature, [participant]: sig };
